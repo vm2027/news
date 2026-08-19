@@ -55,15 +55,39 @@ HEADERS = {
 MAX_ARTICLES_PER_FEED = 5
 
 # ---------------------------------------------------------------------------
+# Per-topic keyword filters (case-insensitive).
+# When a topic has keywords defined, an article must mention at least one
+# keyword in its title or summary to be saved.  Topics without an entry here
+# are saved without filtering (e.g. finance-insurance uses targeted feeds).
+# ---------------------------------------------------------------------------
+TOPIC_KEYWORDS: dict[str, list[str]] = {
+    "el-salvador": [
+        "el salvador",
+        "salvadoran",
+        "salvadorean",
+        "salvadoreño",
+        "bukele",
+        "cecot",
+        "san salvador",
+        "nayib",
+        "tps",          # Temporary Protected Status often tied to El Salvador
+    ],
+}
+
+# ---------------------------------------------------------------------------
 # Built-in feed definitions (used as fallback when no topics/<topic>.md exists)
 # ---------------------------------------------------------------------------
 BUILT_IN_FEEDS: dict[str, list[str]] = {
     "el-salvador": [
+        # Targeted Latin America / Central America feeds
         "https://feeds.reuters.com/reuters/worldNews",
         "https://feeds.bbci.co.uk/news/world/latin_america/rss.xml",
         "https://rss.app/feeds/9KZ8wO6K1X5QcGvM.xml",
         "https://www.france24.com/en/americas/rss",
         "https://apnews.com/rss",
+        # El Salvador local outlets (English)
+        "https://www.elsalvadortimes.com/feed/",
+        "https://elfaro.net/en/rss",
     ],
     "finance-insurance": [
         "https://feeds.reuters.com/reuters/businessNews",
@@ -320,9 +344,21 @@ def main() -> None:
         log.info("  Source : %s", source_name)
         log.info("  Found  : %d entries, processing %d", len(feed.entries), len(entries))
 
+        keywords = [kw.lower() for kw in TOPIC_KEYWORDS.get(topic, [])]
+
         for entry in entries:
             try:
                 filename, content, article_url = entry_to_markdown(entry, topic, source_name)
+
+                # Keyword filter: skip articles that don't mention any topic keyword
+                if keywords:
+                    title_text = entry.get("title", "").lower()
+                    summary_text = re.sub(r"<[^>]+>", "", entry.get("summary", entry.get("description", ""))).lower()
+                    if not any(kw in title_text or kw in summary_text for kw in keywords):
+                        log.info("  → Skipped (no keyword match): %s", entry.get("title", "?"))
+                        total_skipped += 1
+                        continue
+
                 if article_url and article_exists(topic, article_url):
                     log.info("  → Skipped (already saved): %s", article_url)
                     total_skipped += 1
