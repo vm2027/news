@@ -1,0 +1,39 @@
+name: Fetch Daily News
+
+on:
+  schedule:
+    - cron: '0 14 * * *'   # 7:00 AM Pacific (UTC-7) every day
+  workflow_dispatch:         # Allow manual trigger from GitHub UI
+
+jobs:
+  fetch-and-commit:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write        # Needed to push the fetched articles back
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch all news topics
+        run: python run_all.py
+
+      - name: Update index.html with latest articles
+        run: python build_index.py
+
+      - name: Commit and push new articles
+        run: |
+          git config user.name "Vic"
+          git config user.email "notebooklm14@gmail.com"
+          git add obsidian/ index.html
+          git diff --cached --quiet || git commit -m "Auto-update: daily news fetch $(date +'%Y-%m-%d')"
+          git push
