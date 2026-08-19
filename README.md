@@ -1,5 +1,7 @@
 # News Aggregator
 
+Requires: Python 3.10 or newer.
+
 Fetches the latest news from RSS feeds and saves results as Obsidian-compatible markdown files with YAML frontmatter.
 
 No API key required — uses public RSS feeds from Reuters, AP, BBC, and others.
@@ -35,14 +37,16 @@ cd C:\Users\vhmag\OneDrive\GitHub\news
 
 ### 2. Create and activate a virtual environment
 
+This project expects a virtual environment named `.venv`.
+
 ```bash
-python -m venv venv
+python -m venv .venv
 
 # Windows
-venv\Scripts\activate
+.venv\Scripts\activate
 
 # macOS / Linux
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
 ### 3. Install dependencies
