@@ -3,36 +3,77 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>News — El Salvador</title>
+  <title>News Aggregator</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #222; }
-    h1 { color: #003366; border-bottom: 2px solid #003366; padding-bottom: 8px; }
-    h2 { color: #005599; margin-top: 30px; }
-    .date { color: #777; font-size: 0.9em; margin-bottom: 20px; }
-    .story { background: #f9f9f9; border-left: 4px solid #003366; padding: 15px 20px; margin-bottom: 20px; border-radius: 4px; }
+    body { font-family: Arial, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 20px; color: #222; }
+    h1 { color: #003366; border-bottom: 3px solid #003366; padding-bottom: 10px; }
+    h2 { color: #003366; margin-top: 40px; border-bottom: 1px solid #ccc; padding-bottom: 6px; }
+    h3 { color: #005599; margin-top: 20px; margin-bottom: 4px; }
+    .date { color: #777; font-size: 0.9em; margin-bottom: 30px; }
+    .story { background: #f9f9f9; border-left: 4px solid #003366; padding: 14px 18px; margin-bottom: 16px; border-radius: 4px; }
+    .story.finance { border-left-color: #006633; }
     a { color: #005599; }
+    nav { display: flex; gap: 20px; margin-bottom: 30px; }
+    nav a { font-weight: bold; text-decoration: none; color: #003366; padding: 6px 14px; border: 2px solid #003366; border-radius: 4px; }
+    nav a:hover { background: #003366; color: #fff; }
   </style>
 </head>
 <body>
-  <h1>El Salvador — Latest News</h1>
-  <p class="date">Updated: August 18, 2026</p>
+  <h1>📰 News Aggregator</h1>
+  <p class="date">Updated: August 18, 2026 — Auto-refreshed daily at 7am</p>
+
+  <nav>
+    <a href="#el-salvador">🇸🇻 El Salvador</a>
+    <a href="#finance">💼 Finance & Insurance</a>
+  </nav>
+
+  <!-- EL SALVADOR -->
+  <h2 id="el-salvador">🇸🇻 El Salvador</h2>
 
   <div class="story">
-    <h2>Immigration & TPS Update</h2>
-    <p>The Temporary Protected Status (TPS) designation for El Salvador is set to terminate on <strong>September 9, 2026</strong>. USCIS is sending notices to TPS recipients who haven't yet received renewal EADs (category codes A-12 or C-19) confirming their expired TPS-based EADs are extended until the termination date.</p>
+    <h3>Immigration & TPS Update</h3>
+    <p>The Temporary Protected Status (TPS) for El Salvador terminates <strong>September 9, 2026</strong>. USCIS is notifying eligible recipients whose expired TPS-based EADs are extended until the termination date.</p>
     <p><a href="https://www.uscis.gov/save/current-user-agencies/news-alerts/update-on-temporary-protected-status-for-el-salvador-release-aug-12-2026" target="_blank">Source: USCIS</a></p>
   </div>
 
   <div class="story">
-    <h2>Political Developments</h2>
-    <p>President Bukele's party has officially filed his 2027 candidacy, following a legal overhaul that eliminated term limits — clearing his path to remain in power through 2033.</p>
+    <h3>Political Developments</h3>
+    <p>President Bukele's party officially filed his 2027 candidacy after a legal overhaul eliminated term limits, clearing his path to remain in power through 2033.</p>
     <p><a href="https://www.latintimes.com/topics/el-salvador" target="_blank">Source: Latin Times</a></p>
   </div>
 
   <div class="story">
-    <h2>CECOT Deportation Lawsuit</h2>
-    <p>A group of Venezuelan men deported from the United States to El Salvador's CECOT maximum-security prison have filed a proposed class-action lawsuit against two U.S. aviation companies, alleging the carriers knowingly participated in unlawful deportation flights that resulted in arbitrary detention and torture.</p>
+    <h3>CECOT Deportation Lawsuit</h3>
+    <p>Venezuelan men deported to El Salvador's CECOT max-security prison filed a class-action lawsuit against two U.S. aviation companies, alleging they knowingly participated in unlawful deportation flights resulting in arbitrary detention and torture.</p>
     <p><a href="https://ground.news/interest/el-salvador" target="_blank">Source: Ground News</a></p>
   </div>
+
+  <!-- FINANCE & INSURANCE -->
+  <h2 id="finance">💼 Finance & Insurance Industry</h2>
+
+  <div class="story finance">
+    <h3>Market Remains Stable Through Mid-2026</h3>
+    <p>The financial institutions insurance market has held steady with flat renewals, ample capacity, and consistent underwriting. Concerns from the 2023 banking crisis have largely receded — only two small bank failures were reported in 2025.</p>
+    <p><a href="https://baldwin.com/insights/financial-institutions-industry-report/" target="_blank">Source: The Baldwin Group</a></p>
+  </div>
+
+  <div class="story finance">
+    <h3>Rising Defense Costs</h3>
+    <p>Defense costs remain a growing concern as litigation expenses climb. Defense counsel rates of $1,000–$2,000/hour are now common for complex matters, pressuring insurers' loss ratios.</p>
+    <p><a href="https://www.ajg.com/news-and-insights/q1-2026-financial-institutions-insurance-market-update/" target="_blank">Source: Gallagher</a></p>
+  </div>
+
+  <div class="story finance">
+    <h3>Hippo Surges After Raising 2026 Guidance</h3>
+    <p>Hippo's share price jumped ~14.6% after the company raised its 2026 outlook and set a longer-term target of over $2.5 billion in gross written premium by 2028.</p>
+    <p><a href="https://www.insurancebusinessmag.com/us/" target="_blank">Source: Insurance Business</a></p>
+  </div>
+
+  <div class="story finance">
+    <h3>Wildfire Insurance Market Shrinking</h3>
+    <p>Extreme weather risks, particularly wildfires, are continuing to reduce available coverage in high-risk markets. Several major insurers have scaled back underwriting in affected regions.</p>
+    <p><a href="https://www.theinsurer.com/homepage" target="_blank">Source: The Insurer</a></p>
+  </div>
+
 </body>
 </html>
