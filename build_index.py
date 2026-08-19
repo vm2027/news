@@ -67,7 +67,8 @@ def render_story(article, color):
 
 
 def build_html(topics_data):
-    today = datetime.now().strftime("%B %d, %Y")
+    now = datetime.utcnow()
+    today = now.strftime("%B %d, %Y at %I:%M %p UTC")
     nav = "\n    ".join(
         f'<a href="#{slug}">{label}</a>'
         for slug, label in TOPIC_LABELS.items()
