@@ -41,6 +41,27 @@ HEADERS = {
 # Maximum articles to save per feed (avoids flooding vault on first run)
 MAX_ARTICLES_PER_FEED = 5
 
+# ---------------------------------------------------------------------------
+# Built-in feed definitions (used as fallback when no topics/<topic>.md exists)
+# ---------------------------------------------------------------------------
+BUILT_IN_FEEDS: dict[str, list[str]] = {
+    "el-salvador": [
+        "https://feeds.reuters.com/reuters/worldNews",
+        "https://feeds.bbci.co.uk/news/world/latin_america/rss.xml",
+        "https://rss.app/feeds/9KZ8wO6K1X5QcGvM.xml",
+        "https://www.france24.com/en/americas/rss",
+        "https://apnews.com/rss",
+    ],
+    "finance-insurance": [
+        "https://feeds.reuters.com/reuters/businessNews",
+        "https://feeds.bloomberg.com/markets/news.rss",
+        "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+        "https://www.insurancejournal.com/feeds/news.xml",
+        "https://www.insurancebusinessmag.com/rss/news",
+        "https://riskandinsurance.com/feed/",
+    ],
+}
+
 
 # ---------------------------------------------------------------------------
 # Topic loader
@@ -55,6 +76,9 @@ def load_topic(topic: str) -> list[str]:
     """
     topic_file = TOPICS_DIR / f"{topic}.md"
     if not topic_file.exists():
+        if topic in BUILT_IN_FEEDS:
+            print(f"[INFO] No topic file found for '{topic}'; using built-in feed list.")
+            return BUILT_IN_FEEDS[topic]
         print(f"[ERROR] Topic file not found: {topic_file}", file=sys.stderr)
         print(
             f"  Create {topic_file} with an '## RSS Feeds' section listing feed URLs.",
