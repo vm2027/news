@@ -9,17 +9,31 @@ The <topic> must match a file in topics/<topic>.md that lists RSS feed URLs.
 Output is saved to obsidian/<topic>/ as Obsidian-ready markdown files.
 """
 
-import argparse
-import os
-import re
+# Runtime Python version guard — must be before any PEP 585/604 annotations are parsed
 import sys
+if sys.version_info < (3, 10):
+    sys.exit(
+        "This project requires Python 3.10 or newer. Please run with Python 3.10+ or update the code to remove newer type annotations."
+    )
+
+import argparse
+import hashlib
+import logging
+import re
 import textwrap
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 import feedparser
 import requests
 from slugify import slugify
+
+# ---------------------------------------------------------------------------
+# Basic logging
+# ---------------------------------------------------------------------------
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+log = logging.getLogger("news")
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -33,8 +47,7 @@ OBSIDIAN_DIR = ROOT / "obsidian"
 # ---------------------------------------------------------------------------
 HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (compatible; NewsAggregator/1.0; "
-        "+https://github.com/vic/news)"
+        "Mozilla/5.0 (compatible; NewsAggregator/1.0; +https://github.com/vm2027/news)"
     )
 }
 
@@ -77,14 +90,13 @@ def load_topic(topic: str) -> list[str]:
     topic_file = TOPICS_DIR / f"{topic}.md"
     if not topic_file.exists():
         if topic in BUILT_IN_FEEDS:
-            print(f"[INFO] No topic file found for '{topic}'; using built-in feed list.")
+            log.info("No topic file found for '%s'; using built-in feed list.", topic)
             return BUILT_IN_FEEDS[topic]
-        print(f"[ERROR] Topic file not found: {topic_file}", file=sys.stderr)
-        print(
-            f"  Create {topic_file} with an '## RSS Feeds' section listing feed URLs.",
-            file=sys.stderr,
+        log.error("Topic file not found: %s", topic_file)
+        log.error(
+            "  Create %s with an '## RSS Feeds' section listing feed URLs.", topic_file
         )
-        sys.exit(1)
+        raise SystemExit(1)
 
     content = topic_file.read_text(encoding="utf-8")
 
@@ -105,43 +117,47 @@ def load_topic(topic: str) -> list[str]:
                 urls.append(stripped)
 
     if not urls:
-        print(
-            f"[ERROR] No RSS feed URLs found in {topic_file}. "
-            "Add them under an '## RSS Feeds' heading.",
-            file=sys.stderr,
+        log.error(
+            "No RSS feed URLs found in %s. Add them under an '## RSS Feeds' heading.",
+            topic_file,
         )
-        sys.exit(1)
+        raise SystemExit(1)
 
     return urls
 
 
 # ---------------------------------------------------------------------------
-# Feed fetching
+# Feed fetching with retries
 # ---------------------------------------------------------------------------
 
-def fetch_feed(url: str) -> feedparser.FeedParserDict | None:
+def fetch_feed(url: str, retries: int = 3, backoff: float = 1.0) -> feedparser.FeedParserDict | None:
     """Fetch and parse a single RSS/Atom feed. Returns None on failure."""
-    try:
-        # feedparser can use a pre-fetched response so we can pass custom headers
-        response = requests.get(url, headers=HEADERS, timeout=15)
-        response.raise_for_status()
-        feed = feedparser.parse(response.content)
-        if feed.bozo and not feed.entries:
-            print(f"  [WARN] Feed parse issue for {url}: {feed.bozo_exception}")
-            return None
-        return feed
-    except requests.RequestException as exc:
-        print(f"  [WARN] Could not fetch {url}: {exc}")
-        return None
+    last_exc = None
+    for attempt in range(1, retries + 1):
+        try:
+            response = requests.get(url, headers=HEADERS, timeout=15)
+            response.raise_for_status()
+            feed = feedparser.parse(response.content)
+            if feed.bozo and not feed.entries:
+                log.warning("Feed parse issue for %s: %s", url, getattr(feed, "bozo_exception", ""))
+                return None
+            return feed
+        except requests.RequestException as exc:
+            last_exc = exc
+            log.warning("Attempt %d: Could not fetch %s: %s", attempt, url, exc)
+            if attempt < retries:
+                time.sleep(backoff * (2 ** (attempt - 1)))
+    log.error("All attempts failed fetching %s: %s", url, last_exc)
+    return None
 
 
 # ---------------------------------------------------------------------------
 # Markdown generation
 # ---------------------------------------------------------------------------
 
-def entry_to_markdown(entry: feedparser.FeedParserDict, topic: str, source_name: str) -> tuple[str, str]:
+def entry_to_markdown(entry: feedparser.FeedParserDict, topic: str, source_name: str) -> tuple[str, str, str]:
     """
-    Convert a feed entry to (filename, markdown_content).
+    Convert a feed entry to (filename, markdown_content, url).
 
     The markdown uses YAML frontmatter compatible with Obsidian.
     """
@@ -221,16 +237,35 @@ def entry_to_markdown(entry: feedparser.FeedParserDict, topic: str, source_name:
     body = "\n".join(body_parts)
     content = frontmatter + "\n\n" + body
 
-    # --- Filename ---
+    # --- Filename: include short URL hash to avoid collisions ---
     slug = slugify(title, max_length=60, separator="-")
-    filename = f"{date_str}_{slug}.md"
+    if url:
+        short = hashlib.sha1(url.encode("utf-8")).hexdigest()[:8]
+        filename = f"{date_str}_{slug}_{short}.md"
+    else:
+        filename = f"{date_str}_{slug}.md"
 
-    return filename, content
+    return filename, content, url
 
 
 # ---------------------------------------------------------------------------
-# Output writer
+# Output writer with duplicate check
 # ---------------------------------------------------------------------------
+
+def article_exists(topic: str, url: str) -> bool:
+    """Return True if an article with the same URL already exists in obsidian/<topic>/."""
+    out_dir = OBSIDIAN_DIR / topic
+    if not out_dir.exists():
+        return False
+    for p in out_dir.glob("*.md"):
+        try:
+            txt = p.read_text(encoding="utf-8")
+            if f"url: {url}" in txt:
+                return True
+        except Exception:
+            continue
+    return False
+
 
 def save_article(topic: str, filename: str, content: str) -> Path:
     """Write article markdown to obsidian/<topic>/<filename>. Returns the path."""
@@ -265,40 +300,44 @@ def main() -> None:
     topic = args.topic.lower()
     feed_urls = load_topic(topic)
 
-    print(f"Topic : {topic}")
-    print(f"Feeds : {len(feed_urls)}")
-    print(f"Max   : {args.max} articles per feed")
-    print()
+    log.info("Topic : %s", topic)
+    log.info("Feeds : %d", len(feed_urls))
+    log.info("Max   : %d articles per feed", args.max)
+    log.info("")
 
     total_saved = 0
     total_skipped = 0
 
     for url in feed_urls:
-        print(f"Fetching: {url}")
+        log.info("Fetching: %s", url)
         feed = fetch_feed(url)
         if feed is None:
-            print("  → Skipped (fetch failed)\n")
+            log.info("  → Skipped (fetch failed)\n")
             continue
 
         source_name = feed.feed.get("title", url)
         entries = feed.entries[: args.max]
-        print(f"  Source : {source_name}")
-        print(f"  Found  : {len(feed.entries)} entries, processing {len(entries)}")
+        log.info("  Source : %s", source_name)
+        log.info("  Found  : %d entries, processing %d", len(feed.entries), len(entries))
 
         for entry in entries:
             try:
-                filename, content = entry_to_markdown(entry, topic, source_name)
+                filename, content, article_url = entry_to_markdown(entry, topic, source_name)
+                if article_url and article_exists(topic, article_url):
+                    log.info("  → Skipped (already saved): %s", article_url)
+                    total_skipped += 1
+                    continue
                 out_path = save_article(topic, filename, content)
-                print(f"  ✓ {out_path.name}")
+                log.info("  ✓ %s", out_path.name)
                 total_saved += 1
             except Exception as exc:  # noqa: BLE001
-                print(f"  ✗ Error processing entry: {exc}")
+                log.error("  ✗ Error processing entry: %s", exc)
                 total_skipped += 1
 
-        print()
+        log.info("")
 
-    print(f"Done. {total_saved} articles saved, {total_skipped} errors.")
-    print(f"Output: {OBSIDIAN_DIR / topic}/")
+    log.info("Done. %d articles saved, %d errors.", total_saved, total_skipped)
+    log.info("Output: %s", OBSIDIAN_DIR / topic)
 
 
 if __name__ == "__main__":
