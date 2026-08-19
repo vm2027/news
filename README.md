@@ -10,12 +10,16 @@ No API key required — uses public RSS feeds from Reuters, AP, BBC, and others.
 
 ```
 news/
-├── fetch_news.py          # Main script
-├── requirements.txt       # Python dependencies
-├── topics/                # RSS feed lists per topic
-│   └── el-salvador.md
-└── obsidian/              # Output folder (auto-created)
-    └── el-salvador/       # One subfolder per topic
+├── fetch_news.py              # Fetch news for a single topic
+├── run_all.py                 # Run all topics in sequence (used by scheduler)
+├── scheduled_task_setup.ps1   # Register daily 7am Windows Task Scheduler job
+├── requirements.txt           # Python dependencies
+├── topics/                    # RSS feed lists per topic
+│   ├── el-salvador.md
+│   └── finance-insurance.md
+└── obsidian/                  # Output folder (auto-created)
+    ├── el-salvador/           # One subfolder per topic
+    └── finance-insurance/
         └── YYYY-MM-DD_article-title.md
 ```
 
@@ -63,8 +67,19 @@ The `<topic>` argument must match a file name (without `.md`) inside the `topics
 # Fetch El Salvador news
 python fetch_news.py el-salvador
 
-# Fetch technology news (if topics/technology.md exists)
-python fetch_news.py technology
+# Fetch financial & insurance industry news
+python fetch_news.py finance-insurance
+
+# Run ALL topics at once
+python run_all.py
+```
+
+### Automated Daily Schedule (Windows)
+
+To register a daily 7am Task Scheduler job, run once in PowerShell as Administrator:
+
+```powershell
+.\scheduled_task_setup.ps1
 ```
 
 Output files are saved to `obsidian/<topic>/`.
