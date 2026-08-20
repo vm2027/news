@@ -40,7 +40,7 @@ log = logging.getLogger("news")
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).parent
 TOPICS_DIR = ROOT / "topics"
-OBSIDIAN_DIR = ROOT / "obsidian"
+OBSIDIAN_DIR = ROOT / "obsidian" / "Obsedian_R"
 
 # ---------------------------------------------------------------------------
 # HTTP headers — some feeds block bare feedparser user-agents

@@ -9,7 +9,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-OBSIDIAN_DIR = Path("obsidian")
+OBSIDIAN_DIR = Path("obsidian") / "Obsedian_R"
 OUTPUT_FILE = Path("index.html")
 
 TOPIC_LABELS = {
