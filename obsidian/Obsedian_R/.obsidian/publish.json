@@ -1,6 +1,16 @@
 {
   "siteId": "31abb325a88f40e45e1b935a47fa7fb7",
   "host": "publish-01.obsidian.md",
-  "included": [],
+  "included": [
+    "Book - Culturally Responsive Teaching",
+    "el-salvador",
+    "Clippings",
+    "HBR",
+    "News",
+    "Other",
+    "The Economist",
+    "finance-insurance",
+    "News/AI"
+  ],
   "excluded": []
 }
