@@ -26,6 +26,8 @@ jobs:
 
       - name: Fetch all news topics
         run: python run_all.py
+        env:
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
 
       - name: Update index.html with latest articles
         run: python build_index.py

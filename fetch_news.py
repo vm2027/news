@@ -55,6 +55,126 @@ HEADERS = {
 MAX_ARTICLES_PER_FEED = 5
 
 # ---------------------------------------------------------------------------
+# Perplexity API config
+# Set PERPLEXITY_TOPICS to route those topics through Perplexity instead of RSS.
+# The API key is read from the PERPLEXITY_API_KEY environment variable.
+# ---------------------------------------------------------------------------
+import os
+import json
+
+PERPLEXITY_TOPICS: list[str] = ["el-salvador"]  # Change to swap topics
+PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
+PERPLEXITY_MODEL = "sonar"
+MAX_PERPLEXITY_ARTICLES = 10
+
+PERPLEXITY_QUERIES: dict[str, str] = {
+    "el-salvador": "El Salvador news politics economy security Bukele",
+    "finance-insurance": "finance insurance industry news markets",
+}
+
+
+def fetch_perplexity_articles(topic: str) -> list[dict]:
+    """
+    Fetch latest news for a topic via Perplexity's sonar API.
+    Returns a list of article dicts with title, url, date, source, summary.
+    """
+    api_key = os.environ.get("PERPLEXITY_API_KEY", "")
+    if not api_key:
+        log.error("PERPLEXITY_API_KEY not set — skipping Perplexity fetch for '%s'", topic)
+        return []
+
+    query = PERPLEXITY_QUERIES.get(topic, f"latest news {topic}")
+    prompt = (
+        f"Search for the {MAX_PERPLEXITY_ARTICLES} most important news stories about "
+        f"{query} published in the past 48 hours.\n\n"
+        "Return ONLY a JSON array (no other text) where each element has these fields:\n"
+        "- title: article headline\n"
+        "- url: direct link to the article\n"
+        "- date: publication date as YYYY-MM-DD\n"
+        "- source: publication name\n"
+        "- summary: 2-3 sentence summary\n\n"
+        "If you cannot find a direct URL, use the source homepage. "
+        "Return valid JSON only."
+    )
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": PERPLEXITY_MODEL,
+        "messages": [
+            {"role": "system", "content": "You are a news research assistant. Always return valid JSON."},
+            {"role": "user", "content": prompt},
+        ],
+        "max_tokens": 3000,
+    }
+
+    try:
+        resp = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload, timeout=30)
+        resp.raise_for_status()
+        content = resp.json()["choices"][0]["message"]["content"].strip()
+        # Strip markdown code fences if present
+        if content.startswith("```"):
+            content = re.sub(r"^```[a-z]*\n?", "", content)
+            content = re.sub(r"\n?```$", "", content)
+        articles = json.loads(content)
+        log.info("Perplexity returned %d articles for '%s'", len(articles), topic)
+        return articles
+    except json.JSONDecodeError as exc:
+        log.error("Could not parse Perplexity JSON response: %s", exc)
+        return []
+    except requests.RequestException as exc:
+        log.error("Perplexity API request failed: %s", exc)
+        return []
+
+
+def perplexity_article_to_markdown(article: dict, topic: str) -> tuple[str, str, str]:
+    """Convert a Perplexity article dict to (filename, markdown_content, url)."""
+    title = str(article.get("title", "Untitled")).strip()
+    url = str(article.get("url", ""))
+    date_str = str(article.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d")))
+    source = str(article.get("source", "Perplexity"))
+    summary = str(article.get("summary", "")).strip()
+
+    yaml_title = title.replace('"', '\\"')
+    frontmatter = "\n".join([
+        "---",
+        f'title: "{yaml_title}"',
+        f"date: {date_str}",
+        f"source: {source}",
+        f"url: {url}",
+        "tags:",
+        f"  - {topic}",
+        "  - news",
+        "  - perplexity",
+        "---",
+    ])
+
+    body = "\n".join([
+        f"# {title}",
+        "",
+        f"> **Source:** {source}  ",
+        f"> **Published:** {date_str}  ",
+        f"> **URL:** {url}",
+        "",
+        "## Summary",
+        "",
+        summary,
+        "",
+        "## Read More",
+        "",
+        f"[Read the full article →]({url})",
+        "",
+    ])
+
+    slug = slugify(title, max_length=60, separator="-")
+    short = hashlib.sha1(url.encode()).hexdigest()[:8] if url else "000000"
+    filename = f"{date_str}_{slug}_{short}.md"
+    return filename, frontmatter + "\n\n" + body, url
+
+
+# ---------------------------------------------------------------------------
 # Per-topic keyword filters (case-insensitive).
 # When a topic has keywords defined, an article must mention at least one
 # keyword in its title or summary to be saved.  Topics without an entry here
@@ -331,6 +451,28 @@ def main() -> None:
 
     total_saved = 0
     total_skipped = 0
+
+    # ---------------------------------------------------------------------------
+    # Perplexity path — replaces RSS for configured topics
+    # ---------------------------------------------------------------------------
+    if topic in PERPLEXITY_TOPICS:
+        log.info("Using Perplexity API for topic '%s'", topic)
+        articles = fetch_perplexity_articles(topic)
+        for article in articles:
+            try:
+                filename, content, article_url = perplexity_article_to_markdown(article, topic)
+                if article_url and article_exists(topic, article_url):
+                    log.info("  → Skipped (already saved): %s", article_url)
+                    total_skipped += 1
+                    continue
+                out_path = save_article(topic, filename, content)
+                log.info("  ✓ %s", out_path.name)
+                total_saved += 1
+            except Exception as exc:
+                log.error("  ✗ Error processing Perplexity article: %s", exc)
+                total_skipped += 1
+        log.info("Done. %d articles saved, %d skipped.", total_saved, total_skipped)
+        return
 
     for url in feed_urls:
         log.info("Fetching: %s", url)
