@@ -11,10 +11,14 @@
             "id": "9d5aee6627022bc0",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Graph view"
+              "type": "markdown",
+              "state": {
+                "file": "el-salvador/2026-08-18_el-salvador-economy-growth.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "2026-08-18_el-salvador-economy-growth"
             }
           }
         ]
@@ -185,6 +189,8 @@
   },
   "active": "ca2b6f313aa884dd",
   "lastOpenFiles": [
+    "finance-insurance/2026-08-18_gold-surges-as-treasury-buyback-plan-sends-us-yields-lower_ec09568f.md",
+    "el-salvador/2026-08-18_el-salvador-economy-growth.md",
     "finance-insurance/2026-08-19_you-can-now-venmo-your-kids-college-tuition-but-should-you_417725a1.md",
     "finance-insurance/2026-08-19_want-to-bet-on-the-bond-rally-check-out-these-overlooked-fun_de3b1e49.md",
     "finance-insurance/2026-08-19_trump-opens-door-to-hyperliquid-as-us-pulls-crypto-trade-ons_708de7bb.md",
@@ -209,8 +215,6 @@
     "finance-insurance/2026-08-19_hidden-valley-ranch-dressing-may-be-a-victim-of-this-summers_4576cf9c.md",
     "finance-insurance/2026-08-19_goldman-strikes-deal-to-buy-lcn-to-become-hands-off-landlord_b3dc0f72.md",
     "finance-insurance/2026-08-19_five-reasons-were-headed-for-a-10-stock-market-correction-or_82653030.md",
-    "finance-insurance/2026-08-19_goldman-sounds-out-investors-for-data-center-bond-sale_886e8a47.md",
-    "finance-insurance/2026-08-19_goldman-s-mcclure-says-ipo-market-wide-open-for-business_0c3491cf.md",
     "finance-insurance",
     "el-salvador",
     "Untitled 1.base",
