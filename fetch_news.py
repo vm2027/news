@@ -22,7 +22,7 @@ import logging
 import re
 import textwrap
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import feedparser
@@ -67,21 +67,34 @@ PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
 PERPLEXITY_MODEL = "sonar"
 MAX_PERPLEXITY_ARTICLES = 10
 
+# Perplexity is asked for stories from "the past 48 hours" but the sonar model
+# sometimes returns older stories it turned up during search. Allow a little
+# slack for timezone/model imprecision, but discard anything clearly stale.
+PERPLEXITY_MAX_ARTICLE_AGE_DAYS = 4
+
 PERPLEXITY_QUERIES: dict[str, str] = {
     "el-salvador": "El Salvador news politics economy security Bukele",
     "finance-insurance": "finance insurance industry news markets",
 }
 
 
+class PerplexityFetchError(Exception):
+    """Raised when the Perplexity API call itself fails (auth, network, bad JSON)."""
+
+
 def fetch_perplexity_articles(topic: str) -> list[dict]:
     """
     Fetch latest news for a topic via Perplexity's sonar API.
-    Returns a list of article dicts with title, url, date, source, summary.
+    Returns a list of article dicts with title, url, date, source, summary,
+    filtered to articles within PERPLEXITY_MAX_ARTICLE_AGE_DAYS.
+
+    Raises PerplexityFetchError if the API call itself fails (missing key,
+    network/HTTP error, unparsable response, or an empty result set) so
+    callers can treat it as a hard failure rather than silently continuing.
     """
     api_key = os.environ.get("PERPLEXITY_API_KEY", "")
     if not api_key:
-        log.error("PERPLEXITY_API_KEY not set — skipping Perplexity fetch for '%s'", topic)
-        return []
+        raise PerplexityFetchError("PERPLEXITY_API_KEY not set")
 
     query = PERPLEXITY_QUERIES.get(topic, f"latest news {topic}")
     prompt = (
@@ -119,14 +132,38 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
             content = re.sub(r"^```[a-z]*\n?", "", content)
             content = re.sub(r"\n?```$", "", content)
         articles = json.loads(content)
-        log.info("Perplexity returned %d articles for '%s'", len(articles), topic)
-        return articles
     except json.JSONDecodeError as exc:
-        log.error("Could not parse Perplexity JSON response: %s", exc)
-        return []
+        raise PerplexityFetchError(f"Could not parse Perplexity JSON response: {exc}") from exc
     except requests.RequestException as exc:
-        log.error("Perplexity API request failed: %s", exc)
-        return []
+        raise PerplexityFetchError(f"Perplexity API request failed: {exc}") from exc
+
+    if not articles:
+        raise PerplexityFetchError("Perplexity returned an empty article list")
+
+    log.info("Perplexity returned %d articles for '%s' (pre-filter)", len(articles), topic)
+
+    cutoff = datetime.now(timezone.utc).date() - timedelta(days=PERPLEXITY_MAX_ARTICLE_AGE_DAYS)
+    fresh_articles = []
+    for article in articles:
+        date_str = str(article.get("date", "")).strip()
+        try:
+            article_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            log.warning("  → Discarding article with unparsable date %r: %s", date_str, article.get("title", "?"))
+            continue
+        if article_date < cutoff:
+            log.warning(
+                "  → Discarding stale article dated %s (older than %d days): %s",
+                date_str, PERPLEXITY_MAX_ARTICLE_AGE_DAYS, article.get("title", "?"),
+            )
+            continue
+        fresh_articles.append(article)
+
+    log.info(
+        "Perplexity: %d/%d articles within the last %d days for '%s'",
+        len(fresh_articles), len(articles), PERPLEXITY_MAX_ARTICLE_AGE_DAYS, topic,
+    )
+    return fresh_articles
 
 
 def perplexity_article_to_markdown(article: dict, topic: str) -> tuple[str, str, str]:
@@ -457,7 +494,11 @@ def main() -> None:
     # ---------------------------------------------------------------------------
     if topic in PERPLEXITY_TOPICS:
         log.info("Using Perplexity API for topic '%s'", topic)
-        articles = fetch_perplexity_articles(topic)
+        try:
+            articles = fetch_perplexity_articles(topic)
+        except PerplexityFetchError as exc:
+            log.error("Perplexity fetch failed for '%s': %s", topic, exc)
+            sys.exit(1)
         for article in articles:
             try:
                 filename, content, article_url = perplexity_article_to_markdown(article, topic)
