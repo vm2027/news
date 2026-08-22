@@ -1,0 +1,11 @@
+# Normalize line endings to LF on commit (prevents CRLF noise from OneDrive sync)
+* text=auto eol=lf
+
+# Explicitly binary files — no line-ending conversion
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.apkg binary
