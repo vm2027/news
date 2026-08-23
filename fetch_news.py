@@ -138,7 +138,8 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
         raise PerplexityFetchError(f"Perplexity API request failed: {exc}") from exc
 
     if not articles:
-        raise PerplexityFetchError("Perplexity returned an empty article list")
+        log.warning("Perplexity returned no articles for '%s' (no fresh news, not an error)", topic)
+        return []
 
     log.info("Perplexity returned %d articles for '%s' (pre-filter)", len(articles), topic)
 

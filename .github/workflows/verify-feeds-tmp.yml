@@ -1,0 +1,26 @@
+name: Verify Candidate Feeds (temp)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check candidate feed URLs
+        run: |
+          urls=(
+            "https://www.insurancejournal.com/feed/"
+            "https://www.insurancebusinessmag.com/us/rss/"
+            "https://www.insurancebusinessmag.com/us/news/breaking-news/feed/"
+            "https://www.cnbc.com/id/19836768/device/rss/rss.html"
+            "https://www.cnbc.com/id/10001147/device/rss/rss.html"
+          )
+          for u in "${urls[@]}"; do
+            echo "=== $u ==="
+            code=$(curl -s -o /tmp/resp.xml -w "%{http_code}" -L -A "Mozilla/5.0 (compatible; NewsAggregator/1.0)" "$u" || echo "curlfail")
+            echo "HTTP: $code"
+            head -c 400 /tmp/resp.xml
+            echo ""
+            echo "---"
+          done
