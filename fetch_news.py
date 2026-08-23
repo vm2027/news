@@ -89,8 +89,9 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
     filtered to articles within PERPLEXITY_MAX_ARTICLE_AGE_DAYS.
 
     Raises PerplexityFetchError if the API call itself fails (missing key,
-    network/HTTP error, unparsable response, or an empty result set) so
-    callers can treat it as a hard failure rather than silently continuing.
+    network/HTTP error, or an unparsable response) so callers can treat it
+    as a hard failure. An empty result set is not an error - it means no
+    fresh articles were found - and returns an empty list instead.
     """
     api_key = os.environ.get("PERPLEXITY_API_KEY", "")
     if not api_key:
@@ -138,7 +139,8 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
         raise PerplexityFetchError(f"Perplexity API request failed: {exc}") from exc
 
     if not articles:
-        raise PerplexityFetchError("Perplexity returned an empty article list")
+        log.warning("Perplexity returned no articles for '%s' (no fresh news, not an error)", topic)
+        return []
 
     log.info("Perplexity returned %d articles for '%s' (pre-filter)", len(articles), topic)
 
@@ -247,11 +249,11 @@ BUILT_IN_FEEDS: dict[str, list[str]] = {
         "https://elfaro.net/en/rss",
     ],
     "finance-insurance": [
-        "https://feeds.reuters.com/reuters/businessNews",
+        "https://www.cnbc.com/id/19836768/device/rss/rss.html",
         "https://feeds.bloomberg.com/markets/news.rss",
         "https://feeds.content.dowjones.io/public/rss/mw_topstories",
-        "https://www.insurancejournal.com/feeds/news.xml",
-        "https://www.insurancebusinessmag.com/rss/news",
+        "https://www.insurancejournal.com/feed/",
+        "https://www.insurancebusinessmag.com/us/rss/",
         "https://riskandinsurance.com/feed/",
     ],
 }

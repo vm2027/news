@@ -47,12 +47,13 @@ def load_articles(topic):
     for md_file in sorted(folder.glob("*.md"), reverse=True):
         text = md_file.read_text(encoding="utf-8")
         meta, body = parse_frontmatter(text)
+        excerpt = body.split("## Read More")[0].strip()
         articles.append({
             "title": meta.get("title", md_file.stem),
             "date": meta.get("date", ""),
             "source": meta.get("source", ""),
             "url": meta.get("url", "#"),
-            "body": body[:500] + ("…" if len(body) > 500 else ""),
+            "body": excerpt[:500] + ("…" if len(excerpt) > 500 else ""),
         })
     return articles[:10]  # Show latest 10 per topic
 
