@@ -248,11 +248,11 @@ BUILT_IN_FEEDS: dict[str, list[str]] = {
         "https://elfaro.net/en/rss",
     ],
     "finance-insurance": [
-        "https://feeds.reuters.com/reuters/businessNews",
+        "https://www.cnbc.com/id/19836768/device/rss/rss.html",
         "https://feeds.bloomberg.com/markets/news.rss",
         "https://feeds.content.dowjones.io/public/rss/mw_topstories",
-        "https://www.insurancejournal.com/feeds/news.xml",
-        "https://www.insurancebusinessmag.com/rss/news",
+        "https://www.insurancejournal.com/feed/",
+        "https://www.insurancebusinessmag.com/us/rss/",
         "https://riskandinsurance.com/feed/",
     ],
 }
