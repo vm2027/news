@@ -89,8 +89,9 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
     filtered to articles within PERPLEXITY_MAX_ARTICLE_AGE_DAYS.
 
     Raises PerplexityFetchError if the API call itself fails (missing key,
-    network/HTTP error, unparsable response, or an empty result set) so
-    callers can treat it as a hard failure rather than silently continuing.
+    network/HTTP error, or an unparsable response) so callers can treat it
+    as a hard failure. An empty result set is not an error - it means no
+    fresh articles were found - and returns an empty list instead.
     """
     api_key = os.environ.get("PERPLEXITY_API_KEY", "")
     if not api_key:
