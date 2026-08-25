@@ -24,6 +24,7 @@ import textwrap
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 import feedparser
 import requests
@@ -84,6 +85,33 @@ PERPLEXITY_QUERIES: dict[str, str] = {
 
 class PerplexityFetchError(Exception):
     """Raised when the Perplexity API call itself fails (auth, network, bad JSON)."""
+
+
+def looks_like_article_url(url: str) -> bool:
+    """
+    Heuristic check that a URL points to a specific article rather than a
+    section/category/homepage. Perplexity sometimes returns pages like
+    bloomberg.com/markets or reuters.com/legal/insurance/ as if they were
+    dated articles, regardless of prompt instructions - this is a
+    code-level backstop rather than relying on the model alone.
+
+    A URL counts as an article if its path contains a year (a dated
+    article), or its final path segment is a long, specific slug rather
+    than a short generic category name.
+    """
+    try:
+        path = urlparse(url).path.strip("/")
+    except ValueError:
+        return False
+    if not path:
+        return False
+    segments = [s for s in path.split("/") if s]
+    if any(re.fullmatch(r"(19|20)\d{2}", seg) for seg in segments):
+        return True
+    if len(path) > 40:
+        return True
+    last_segment_words = re.split(r"[-_]", segments[-1])
+    return len([w for w in last_segment_words if w]) >= 4
 
 
 def fetch_perplexity_articles(topic: str) -> list[dict]:
@@ -167,6 +195,13 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
             log.warning(
                 "  → Discarding stale article dated %s (older than %d days): %s",
                 date_str, PERPLEXITY_MAX_ARTICLE_AGE_DAYS, article.get("title", "?"),
+            )
+            continue
+        article_url = str(article.get("url", ""))
+        if not looks_like_article_url(article_url):
+            log.warning(
+                "  → Discarding non-article URL (looks like a section/homepage page): %s (%s)",
+                article_url, article.get("title", "?"),
             )
             continue
         fresh_articles.append(article)
