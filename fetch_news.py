@@ -103,15 +103,21 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
 
     query = PERPLEXITY_QUERIES.get(topic, f"latest news {topic}")
     prompt = (
-        f"Search for the {MAX_PERPLEXITY_ARTICLES} most important news stories about "
-        f"{query} published in the past 48 hours.\n\n"
+        f"Search for the {MAX_PERPLEXITY_ARTICLES} most important individual news "
+        f"articles about {query} published in the past 48 hours.\n\n"
+        "Each result MUST be a single specific news article with its own headline "
+        "and a URL that links directly to that article. Do NOT include section, "
+        "category, or markets/homepage pages (e.g. URLs like /markets, /news, "
+        "/insurance/, or a site's front page) even if they list relevant "
+        "headlines - only individual dated articles count. If you cannot find a "
+        "direct article URL for a story, skip it rather than substituting a "
+        "homepage or section URL.\n\n"
         "Return ONLY a JSON array (no other text) where each element has these fields:\n"
-        "- title: article headline\n"
-        "- url: direct link to the article\n"
+        "- title: the article's actual headline\n"
+        "- url: direct link to that specific article\n"
         "- date: publication date as YYYY-MM-DD\n"
         "- source: publication name\n"
-        "- summary: 2-3 sentence summary\n\n"
-        "If you cannot find a direct URL, use the source homepage. "
+        "- summary: 2-3 sentence summary of that article's content\n\n"
         "Return valid JSON only."
     )
 
