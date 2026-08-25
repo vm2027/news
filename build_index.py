@@ -4,6 +4,7 @@ Reads all markdown files in obsidian/<topic>/ and rebuilds index.html.
 Run automatically by GitHub Actions after fetch_news.py.
 """
 
+import html
 import os
 import re
 from datetime import datetime
@@ -77,11 +78,16 @@ def render_story(article, color):
         badge = '<span class="badge badge-perplexity">Perplexity</span>'
     else:
         badge = '<span class="badge badge-rss">RSS</span>'
+    url = html.escape(article["url"])
+    title = html.escape(article["title"])
+    date = html.escape(article["date"])
+    source = html.escape(article["source"])
+    body = html.escape(article["body"])
     return f"""
   <div class="story" style="border-left-color:{color}">
-    <h3><a href="{article['url']}" target="_blank">{article['title']}</a> {badge}</h3>
-    <p class="meta">{article['date']} — {article['source']}</p>
-    <p>{article['body']}</p>
+    <h3><a href="{url}" target="_blank" rel="noopener noreferrer">{title}</a> {badge}</h3>
+    <p class="meta">{date} — {source}</p>
+    <p>{body}</p>
   </div>"""
 
 
