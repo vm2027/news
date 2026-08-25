@@ -56,10 +56,11 @@ that arrives too late to matter:
 - If Copilot flags something, fix it (or explain in this repo why not)
   before merging, the same way a human reviewer's comment would be
   handled.
-- Branch protection on `master` (Settings → Branches → require a pull
-  request + at least one approval before merging) is a stronger,
-  GitHub-enforced version of this and should be enabled if not already —
-  it doesn't depend on remembering to do the above.
+- Branch protection on `master` requires a pull request before merging
+  (enabled; no required-approvals count, so it doesn't force a human to
+  click Approve on every PR). This is a GitHub-enforced backstop against
+  direct pushes to `master` — it doesn't by itself enforce waiting for
+  Copilot's review, so still follow the step above.
 
 ## Workflow notes
 
