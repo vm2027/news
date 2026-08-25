@@ -51,18 +51,28 @@ def parse_frontmatter(text):
     return meta, body.strip()
 
 
+ARTICLES_PER_TOPIC = 10
+MIN_PERPLEXITY_SLOTS = 3
+
+
 def load_articles(topic):
-    """Load all markdown articles for a topic, newest first."""
+    """Load markdown articles for a topic, newest first.
+
+    RSS feeds publish far more articles per day than Perplexity does, so
+    simply taking the newest ARTICLES_PER_TOPIC would let RSS crowd
+    Perplexity-sourced articles out entirely on busy days. Reserve slots
+    for the most recent Perplexity articles to keep them visible.
+    """
     folder = OBSIDIAN_DIR / topic
     if not folder.exists():
         return []
-    articles = []
+    all_articles = []
     for md_file in sorted(folder.glob("*.md"), reverse=True):
         text = md_file.read_text(encoding="utf-8")
         meta, body = parse_frontmatter(text)
         summary_match = re.search(r"## Summary\n\n(.*?)(?:\n\n## |\Z)", body, re.DOTALL)
         excerpt = summary_match.group(1).strip() if summary_match else body.split("## Read More")[0].strip()
-        articles.append({
+        all_articles.append({
             "title": meta.get("title", md_file.stem),
             "date": meta.get("date", ""),
             "source": meta.get("source", ""),
@@ -70,7 +80,14 @@ def load_articles(topic):
             "body": excerpt[:500] + ("…" if len(excerpt) > 500 else ""),
             "via_perplexity": "perplexity" in meta.get("tags", []),
         })
-    return articles[:10]  # Show latest 10 per topic
+
+    perplexity_indices = [i for i, a in enumerate(all_articles) if a["via_perplexity"]]
+    selected = set(perplexity_indices[:MIN_PERPLEXITY_SLOTS])
+    for i in range(len(all_articles)):
+        if len(selected) >= ARTICLES_PER_TOPIC:
+            break
+        selected.add(i)
+    return [all_articles[i] for i in sorted(selected)][:ARTICLES_PER_TOPIC]
 
 
 def render_story(article, color):
