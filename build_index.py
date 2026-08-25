@@ -24,17 +24,29 @@ TOPIC_COLORS = {
 
 
 def parse_frontmatter(text):
-    """Extract YAML frontmatter fields from a markdown file."""
+    """Extract YAML frontmatter fields from a markdown file. List values
+    (e.g. tags) are collected into a list under their key."""
     meta = {}
     match = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
     if not match:
         return meta, text
     fm = match.group(1)
     body = text[match.end():]
+    current_list_key = None
     for line in fm.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- ") and current_list_key:
+            meta.setdefault(current_list_key, []).append(stripped[2:].strip())
+            continue
         if ":" in line:
             key, _, val = line.partition(":")
-            meta[key.strip()] = val.strip().strip('"')
+            key = key.strip()
+            val = val.strip().strip('"')
+            if val:
+                meta[key] = val
+                current_list_key = None
+            else:
+                current_list_key = key
     return meta, body.strip()
 
 
@@ -55,14 +67,19 @@ def load_articles(topic):
             "source": meta.get("source", ""),
             "url": meta.get("url", "#"),
             "body": excerpt[:500] + ("…" if len(excerpt) > 500 else ""),
+            "via_perplexity": "perplexity" in meta.get("tags", []),
         })
     return articles[:10]  # Show latest 10 per topic
 
 
 def render_story(article, color):
+    if article.get("via_perplexity"):
+        badge = '<span class="badge badge-perplexity">Perplexity</span>'
+    else:
+        badge = '<span class="badge badge-rss">RSS</span>'
     return f"""
   <div class="story" style="border-left-color:{color}">
-    <h3><a href="{article['url']}" target="_blank">{article['title']}</a></h3>
+    <h3><a href="{article['url']}" target="_blank">{article['title']}</a> {badge}</h3>
     <p class="meta">{article['date']} — {article['source']}</p>
     <p>{article['body']}</p>
   </div>"""
@@ -102,6 +119,9 @@ def build_html(topics_data):
     h3 {{ margin-bottom: 2px; overflow-wrap: break-word; }}
     h3 a {{ color: #005599; text-decoration: none; }}
     h3 a:hover {{ text-decoration: underline; }}
+    .badge {{ display: inline-block; font-size: 0.65em; font-weight: bold; padding: 2px 8px; border-radius: 10px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }}
+    .badge-rss {{ background: #e0e0e0; color: #555; }}
+    .badge-perplexity {{ background: #6b46c1; color: #fff; }}
     .meta {{ color: #777; font-size: 0.85em; margin: 2px 0 8px; }}
     .date {{ color: #777; font-size: 0.9em; margin-bottom: 30px; }}
     .story {{ background: #f9f9f9; border-left: 4px solid #003366; padding: 14px 18px; margin-bottom: 16px; border-radius: 4px; overflow-wrap: break-word; word-break: break-word; }}
