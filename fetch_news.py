@@ -56,13 +56,17 @@ MAX_ARTICLES_PER_FEED = 5
 
 # ---------------------------------------------------------------------------
 # Perplexity API config
-# Set PERPLEXITY_TOPICS to route those topics through Perplexity instead of RSS.
+# Set PERPLEXITY_TOPICS to route those topics through Perplexity in addition
+# to (or instead of) RSS. Topics listed in PERPLEXITY_SUPPLEMENTS_RSS run
+# Perplexity *and then* still fetch their RSS feeds; topics in
+# PERPLEXITY_TOPICS but not in PERPLEXITY_SUPPLEMENTS_RSS use Perplexity only.
 # The API key is read from the PERPLEXITY_API_KEY environment variable.
 # ---------------------------------------------------------------------------
 import os
 import json
 
-PERPLEXITY_TOPICS: list[str] = ["el-salvador"]  # Change to swap topics
+PERPLEXITY_TOPICS: list[str] = ["el-salvador", "finance-insurance"]
+PERPLEXITY_SUPPLEMENTS_RSS: list[str] = ["finance-insurance"]
 PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
 PERPLEXITY_MODEL = "sonar"
 MAX_PERPLEXITY_ARTICLES = 10
@@ -492,7 +496,8 @@ def main() -> None:
     total_skipped = 0
 
     # ---------------------------------------------------------------------------
-    # Perplexity path — replaces RSS for configured topics
+    # Perplexity path — replaces RSS for configured topics, or supplements it
+    # for topics listed in PERPLEXITY_SUPPLEMENTS_RSS (both sources run).
     # ---------------------------------------------------------------------------
     if topic in PERPLEXITY_TOPICS:
         log.info("Using Perplexity API for topic '%s'", topic)
@@ -514,8 +519,12 @@ def main() -> None:
             except Exception as exc:
                 log.error("  ✗ Error processing Perplexity article: %s", exc)
                 total_skipped += 1
-        log.info("Done. %d articles saved, %d skipped.", total_saved, total_skipped)
-        return
+        log.info("Perplexity done. %d articles saved, %d skipped so far.", total_saved, total_skipped)
+        if topic not in PERPLEXITY_SUPPLEMENTS_RSS:
+            log.info("Done. %d articles saved, %d skipped.", total_saved, total_skipped)
+            return
+        log.info("Continuing to RSS feeds for '%s'...", topic)
+        log.info("")
 
     for url in feed_urls:
         log.info("Fetching: %s", url)
