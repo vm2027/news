@@ -47,7 +47,8 @@ def load_articles(topic):
     for md_file in sorted(folder.glob("*.md"), reverse=True):
         text = md_file.read_text(encoding="utf-8")
         meta, body = parse_frontmatter(text)
-        excerpt = body.split("## Read More")[0].strip()
+        summary_match = re.search(r"## Summary\n\n(.*?)(?:\n\n## |\Z)", body, re.DOTALL)
+        excerpt = summary_match.group(1).strip() if summary_match else body.split("## Read More")[0].strip()
         articles.append({
             "title": meta.get("title", md_file.stem),
             "date": meta.get("date", ""),
@@ -95,15 +96,15 @@ def build_html(topics_data):
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>News Aggregator</title>
   <style>
-    body {{ font-family: Arial, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 20px; color: #222; }}
+    body {{ font-family: Arial, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 20px; color: #222; overflow-x: hidden; }}
     h1 {{ color: #003366; border-bottom: 3px solid #003366; padding-bottom: 10px; }}
     h2 {{ color: #003366; margin-top: 40px; border-bottom: 1px solid #ccc; padding-bottom: 6px; }}
-    h3 {{ margin-bottom: 2px; }}
+    h3 {{ margin-bottom: 2px; overflow-wrap: break-word; }}
     h3 a {{ color: #005599; text-decoration: none; }}
     h3 a:hover {{ text-decoration: underline; }}
     .meta {{ color: #777; font-size: 0.85em; margin: 2px 0 8px; }}
     .date {{ color: #777; font-size: 0.9em; margin-bottom: 30px; }}
-    .story {{ background: #f9f9f9; border-left: 4px solid #003366; padding: 14px 18px; margin-bottom: 16px; border-radius: 4px; }}
+    .story {{ background: #f9f9f9; border-left: 4px solid #003366; padding: 14px 18px; margin-bottom: 16px; border-radius: 4px; overflow-wrap: break-word; word-break: break-word; }}
     nav {{ display: flex; gap: 16px; margin-bottom: 30px; flex-wrap: wrap; }}
     nav a {{ font-weight: bold; text-decoration: none; color: #003366; padding: 6px 14px; border: 2px solid #003366; border-radius: 4px; }}
     nav a:hover {{ background: #003366; color: #fff; }}

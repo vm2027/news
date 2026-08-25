@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>News Aggregator</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 20px; color: #222; }
+    body { font-family: Arial, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 20px; color: #222; overflow-x: hidden; }
     h1 { color: #003366; border-bottom: 3px solid #003366; padding-bottom: 10px; }
     h2 { color: #003366; margin-top: 40px; border-bottom: 1px solid #ccc; padding-bottom: 6px; }
-    h3 { margin-bottom: 2px; }
+    h3 { margin-bottom: 2px; overflow-wrap: break-word; }
     h3 a { color: #005599; text-decoration: none; }
     h3 a:hover { text-decoration: underline; }
     .meta { color: #777; font-size: 0.85em; margin: 2px 0 8px; }
     .date { color: #777; font-size: 0.9em; margin-bottom: 30px; }
-    .story { background: #f9f9f9; border-left: 4px solid #003366; padding: 14px 18px; margin-bottom: 16px; border-radius: 4px; }
+    .story { background: #f9f9f9; border-left: 4px solid #003366; padding: 14px 18px; margin-bottom: 16px; border-radius: 4px; overflow-wrap: break-word; word-break: break-word; }
     nav { display: flex; gap: 16px; margin-bottom: 30px; flex-wrap: wrap; }
     nav a { font-weight: bold; text-decoration: none; color: #003366; padding: 6px 14px; border: 2px solid #003366; border-radius: 4px; }
     nav a:hover { background: #003366; color: #fff; }
@@ -21,7 +21,7 @@
 </head>
 <body>
   <h1>📰 News Aggregator</h1>
-  <p class="date">Updated: August 25, 2026 at 09:10 AM PT — Auto-refreshed daily at 7am Pacific</p>
+  <p class="date">Updated: August 25, 2026 at 09:52 AM PT — Auto-refreshed daily at 7am Pacific</p>
   <nav>
     <a href="#el-salvador">🇸🇻 El Salvador</a>
     <a href="#finance-insurance">💼 Finance & Insurance</a>
@@ -32,278 +32,122 @@
   <div class="story" style="border-left-color:#003366">
     <h3><a href="https://english.elpais.com/international/2026-08-24/ms-13-gang-members-say-they-buried-200-people-in-bukeles-political-cradle.html" target="_blank">MS-13 gang members say they buried 200 people in Bukele's political cradle</a></h3>
     <p class="meta">2026-08-24 — El País</p>
-    <p># MS-13 gang members say they buried 200 people in Bukele's political cradle
-
-> **Source:** El País  
-> **Published:** 2026-08-24  
-> **URL:** https://english.elpais.com/international/2026-08-24/ms-13-gang-members-say-they-buried-200-people-in-bukeles-political-cradle.html
-
-## Summary
-
-Three MS-13 members testified under a cooperation agreement that they tortured, murdered, and buried more than 200 people between 2013 and 2021. The case adds fresh scrutiny to gang violence and the crimes prosecu…</p>
+    <p>Three MS-13 members testified under a cooperation agreement that they tortured, murdered, and buried more than 200 people between 2013 and 2021. The case adds fresh scrutiny to gang violence and the crimes prosecuted under Bukele’s security agenda.</p>
   </div>
   <div class="story" style="border-left-color:#003366">
     <h3><a href="https://en.cibercuba.com/noticias/2026-08-24-u1-e199370-s27061-nid338616-pais-violento-mundo-al-seguro-america-asi-cambio" target="_blank">From the most violent country in the world to the safest in America: this is how El Salvador changed under Bukele</a></h3>
     <p class="meta">2026-08-24 — CiberCuba</p>
-    <p># From the most violent country in the world to the safest in America: this is how El Salvador changed under Bukele
-
-> **Source:** CiberCuba  
-> **Published:** 2026-08-24  
-> **URL:** https://en.cibercuba.com/noticias/2026-08-24-u1-e199370-s27061-nid338616-pais-violento-mundo-al-seguro-america-asi-cambio
-
-## Summary
-
-The article describes El Salvador’s sharp drop in violence under Bukele and links it to emergency measures introduced in 2022. It also notes that those measures remain in force in A…</p>
+    <p>The article describes El Salvador’s sharp drop in violence under Bukele and links it to emergency measures introduced in 2022. It also notes that those measures remain in force in August 2026.</p>
   </div>
   <div class="story" style="border-left-color:#003366">
     <h3><a href="https://www.reuters.com/world/americas/el-salvador-economy-2026-08-18/" target="_blank">El Salvador Reports Economic Growth Driven by Remittances and Tourism</a></h3>
     <p class="meta">2026-08-18 — Reuters</p>
-    <p># El Salvador Reports Economic Growth Driven by Remittances and Tourism
-
-> **Source:** Reuters  
-> **Published:** 2026-08-18 09:30 UTC  
-> **URL:** https://www.reuters.com/world/americas/el-salvador-economy-2026-08-18/
-
-## Summary
-
-El Salvador's economy posted continued growth in the first half of 2026, buoyed by record remittance inflows from
+    <p>El Salvador's economy posted continued growth in the first half of 2026, buoyed by record remittance inflows from
 Salvadorans living abroad and a rebound in tourist arrivals. The Central Reserve Bank reported a 4.2% GDP
-expansion year-on-year, above initial projection…</p>
+expansion year-on-year, above initial projections. Government officials cited infrastructure investment and
+expanded digital payment infrastructure as contributing factors.</p>
   </div>
   <div class="story" style="border-left-color:#003366">
     <h3><a href="https://bti-project.org/en/reports/country-report/SLV" target="_blank">El Salvador Country Report 2026</a></h3>
     <p class="meta">2026-08-18 — BTI Project</p>
-    <p># El Salvador Country Report 2026
-
-> **Source:** BTI Project  
-> **Published:** 2026-08-18  
-> **URL:** https://bti-project.org/en/reports/country-report/SLV
-
-## Summary
-
-The report describes Bukele’s dominance of Salvadoran politics after the 2024 election and the resulting concentration of power. It also flags fiscal fragility, debt pressures, and continued dependence on remittances despite improved security.</p>
+    <p>The report describes Bukele’s dominance of Salvadoran politics after the 2024 election and the resulting concentration of power. It also flags fiscal fragility, debt pressures, and continued dependence on remittances despite improved security.</p>
   </div>
   <div class="story" style="border-left-color:#003366">
     <h3><a href="https://www.bbc.com/portuguese/articles/ckg3k56mdydo" target="_blank">Como é viver em El Salvador após Bukele derrotar facções: 'O medo agora é outro'</a></h3>
     <p class="meta">2026-08-17 — BBC News Brasil</p>
-    <p># Como é viver em El Salvador após Bukele derrotar facções: 'O medo agora é outro'
-
-> **Source:** BBC News Brasil  
-> **Published:** 2026-08-17  
-> **URL:** https://www.bbc.com/portuguese/articles/ckg3k56mdydo
-
-## Summary
-
-This feature examines daily life in El Salvador after Bukele’s crackdown on gangs and says public fear has shifted rather than disappeared. It also notes Bukele’s strong popularity in the country.</p>
+    <p>This feature examines daily life in El Salvador after Bukele’s crackdown on gangs and says public fear has shifted rather than disappeared. It also notes Bukele’s strong popularity in the country.</p>
   </div>
   <div class="story" style="border-left-color:#003366">
     <h3><a href="https://g1.globo.com/mundo/noticia/2026/08/17/a-vida-em-el-salvador-4-anos-sob-bukele-o-medo-agora-e-outro.ghtml" target="_blank">A vida em El Salvador 4 anos sob Bukele: 'O medo agora é ...</a></h3>
     <p class="meta">2026-08-17 — G1</p>
-    <p># A vida em El Salvador 4 anos sob Bukele: 'O medo agora é ...
-
-> **Source:** G1  
-> **Published:** 2026-08-17  
-> **URL:** https://g1.globo.com/mundo/noticia/2026/08/17/a-vida-em-el-salvador-4-anos-sob-bukele-o-medo-agora-e-outro.ghtml
-
-## Summary
-
-A feature on life in El Salvador under Bukele focuses on the country’s dramatic security shift and how daily life has changed after years of anti-gang policies. It also notes recent economic growth and extremely low homicide rates, while reflecting o…</p>
+    <p>A feature on life in El Salvador under Bukele focuses on the country’s dramatic security shift and how daily life has changed after years of anti-gang policies. It also notes recent economic growth and extremely low homicide rates, while reflecting on the social tradeoffs of the model.</p>
   </div>
   <div class="story" style="border-left-color:#003366">
     <h3><a href="https://g1.globo.com/google/amp/mundo/noticia/2026/08/17/a-vida-em-el-salvador-4-anos-sob-bukele-o-medo-agora-e-outro.ghtml" target="_blank">A vida em El Salvador 4 anos sob Bukele: 'O medo agora é outro'</a></h3>
     <p class="meta">2026-08-17 — G1</p>
-    <p># A vida em El Salvador 4 anos sob Bukele: 'O medo agora é outro'
-
-> **Source:** G1  
-> **Published:** 2026-08-17  
-> **URL:** https://g1.globo.com/google/amp/mundo/noticia/2026/08/17/a-vida-em-el-salvador-4-anos-sob-bukele-o-medo-agora-e-outro.ghtml
-
-## Summary
-
-This report describes how El Salvador has changed after four years under Bukele, with violence far lower than before and public fear shifting away from gangs. It also notes legal and political changes that have expanded Bukele’s ability…</p>
+    <p>This report describes how El Salvador has changed after four years under Bukele, with violence far lower than before and public fear shifting away from gangs. It also notes legal and political changes that have expanded Bukele’s ability to remain in power.</p>
   </div>
   <div class="story" style="border-left-color:#003366">
     <h3><a href="https://www.eldiariodehoy.com/negocios/deuda-inflacion-e-incertidumbre-migratoria-las-senales-economicas-que-dejo-la-semana/89698/2026/" target="_blank">Deuda, inflación e incertidumbre migratoria: las señales económicas que dejó la semana</a></h3>
     <p class="meta">2026-08-16 — El Diario de Hoy</p>
-    <p># Deuda, inflación e incertidumbre migratoria: las señales económicas que dejó la semana
-
-> **Source:** El Diario de Hoy  
-> **Published:** 2026-08-16  
-> **URL:** https://www.eldiariodehoy.com/negocios/deuda-inflacion-e-incertidumbre-migratoria-las-senales-economicas-que-dejo-la-semana/89698/2026/
-
-## Summary
-
-This roundup highlights rising public debt, inflation pressures, and migration uncertainty as key economic concerns. It also points to possible impacts from the future of TPS for Salvador…</p>
+    <p>This roundup highlights rising public debt, inflation pressures, and migration uncertainty as key economic concerns. It also points to possible impacts from the future of TPS for Salvadorans in the United States.</p>
   </div>
   <div class="story" style="border-left-color:#003366">
     <h3><a href="https://www.bssnews.net/international/413850" target="_blank">Trial of veterans accused of plotting against Bukele postponed</a></h3>
     <p class="meta">2026-08-12 — BSS News / AFP</p>
-    <p># Trial of veterans accused of plotting against Bukele postponed
-
-> **Source:** BSS News / AFP  
-> **Published:** 2026-08-12  
-> **URL:** https://www.bssnews.net/international/413850
-
-## Summary
-
-A court case involving veterans accused of plotting to disrupt Bukele’s inauguration was postponed to September 7. Family members denounced the delay as a judicial abuse, underscoring continued political tension around the president.</p>
+    <p>A court case involving veterans accused of plotting to disrupt Bukele’s inauguration was postponed to September 7. Family members denounced the delay as a judicial abuse, underscoring continued political tension around the president.</p>
   </div>
   <div class="story" style="border-left-color:#003366">
     <h3><a href="https://www.laveulliure.ad/en/news/el-salvador-transformation-less-violence-investment-falling-poverty-bukele" target="_blank">less violence, more investment and falling poverty under Bukele</a></h3>
     <p class="meta">2026-08-12 — La Veu Lliure</p>
-    <p># less violence, more investment and falling poverty under Bukele
-
-> **Source:** La Veu Lliure  
-> **Published:** 2026-08-12  
-> **URL:** https://www.laveulliure.ad/en/news/el-salvador-transformation-less-violence-investment-falling-poverty-bukele
-
-## Summary
-
-The article presents Bukele’s government as combining a steep decline in violent crime with stronger investment, tourism, and lower poverty. It says growth remained strong in 2025 and is expected to stay above historical averages in 2026.</p>
+    <p>The article presents Bukele’s government as combining a steep decline in violent crime with stronger investment, tourism, and lower poverty. It says growth remained strong in 2025 and is expected to stay above historical averages in 2026.</p>
   </div>
   <h2 id="finance-insurance">💼 Finance & Insurance</h2>
 
   <div class="story" style="border-left-color:#006633">
     <h3><a href="https://www.insurancejournal.com/news/east/2026/08/25/882745.htm" target="_blank">Willis Towers Watson Accuses Lockton of ‘Smash and Grab’ of Construction Team</a></h3>
     <p class="meta">2026-08-25 — Insurance Journal</p>
-    <p># Willis Towers Watson Accuses Lockton of ‘Smash and Grab’ of Construction Team
-
-> **Source:** Insurance Journal  
-> **Published:** 2026-08-25 14:29 UTC  
-> **URL:** https://www.insurancejournal.com/news/east/2026/08/25/882745.htm
-
-## Summary
-
-Insurance broker Willis Towers Watson (WTW) is accusing rival Lockton Companies and 18 former
+    <p>Insurance broker Willis Towers Watson (WTW) is accusing rival Lockton Companies and 18 former
 employees of WTW&#8217;s Northeast construction insurance team of engineering a &#8220;smash and
-grab&#8221; operation that began on August 19. On that day, 18 me…</p>
+grab&#8221; operation that began on August 19. On that day, 18 members of WTW&#8217;s &#8230;</p>
   </div>
   <div class="story" style="border-left-color:#006633">
     <h3><a href="https://www.insurancebusinessmag.com/us/tv/whats-the-key-to-winning-commercial-business-in-california-587413.aspx" target="_blank">What's the key to winning commercial business in California?</a></h3>
     <p class="meta">2026-08-25 — Insurance Business</p>
-    <p># What's the key to winning commercial business in California?
-
-> **Source:** Insurance Business  
-> **Published:** 2026-08-25 15:19 UTC  
-> **URL:** https://www.insurancebusinessmag.com/us/tv/whats-the-key-to-winning-commercial-business-in-california-587413.aspx
-
-## Summary
-
-One firm is surging ahead with its approach</p>
+    <p>One firm is surging ahead with its approach</p>
   </div>
   <div class="story" style="border-left-color:#006633">
     <h3><a href="https://www.insurancejournal.com/news/national/2026/08/25/882779.htm" target="_blank">Viewpoint: When Andrew Returns – A Look Back at a Pivotal Insurance Event</a></h3>
     <p class="meta">2026-08-25 — Insurance Journal</p>
-    <p># Viewpoint: When Andrew Returns – A Look Back at a Pivotal Insurance Event
-
-> **Source:** Insurance Journal  
-> **Published:** 2026-08-25 14:49 UTC  
-> **URL:** https://www.insurancejournal.com/news/national/2026/08/25/882779.htm
-
-## Summary
-
-At five o&#8217;clock on the morning of August 24, 1992, Hurricane Andrew came ashore near
+    <p>At five o&#8217;clock on the morning of August 24, 1992, Hurricane Andrew came ashore near
 Homestead, Florida, as a Category 5 storm. It was one of only four hurricanes known to have struck
 the continental United States at Category 5 &#8230;</p>
   </div>
   <div class="story" style="border-left-color:#006633">
     <h3><a href="https://www.marketwatch.com/story/these-growth-stocks-are-still-cheap-despite-the-s-p-500-being-near-a-record-high-price-to-sales-valuation-03602260?mod=mw_rss_topstories" target="_blank">These growth stocks are still cheap, despite the S&P 500 being near a record high price-to-sales valuation</a></h3>
     <p class="meta">2026-08-25 — MarketWatch.com - Top Stories</p>
-    <p># These growth stocks are still cheap, despite the S&P 500 being near a record high price-to-sales valuation
-
-> **Source:** MarketWatch.com - Top Stories  
-> **Published:** 2026-08-25 16:04 UTC  
-> **URL:** https://www.marketwatch.com/story/these-growth-stocks-are-still-cheap-despite-the-s-p-500-being-near-a-record-high-price-to-sales-valuation-03602260?mod=mw_rss_topstories
-
-## Summary
-
-These are three of the 11 stocks among the S&amp;P 500 that passed a screen, trading below their
-long-term av…</p>
+    <p>These are three of the 11 stocks among the S&amp;P 500 that passed a screen, trading below their
+long-term average price/sales ratios, with estimates for very strong revenue growth through 2028.</p>
   </div>
   <div class="story" style="border-left-color:#006633">
     <h3><a href="https://www.insurancebusinessmag.com/us/news/sme/the-ai-clause-that-may-already-be-on-your-contractor-clients-policy-587395.aspx" target="_blank">The AI clause that may already be on your contractor client's policy</a></h3>
     <p class="meta">2026-08-25 — Insurance Business</p>
-    <p># The AI clause that may already be on your contractor client's policy
-
-> **Source:** Insurance Business  
-> **Published:** 2026-08-25 13:17 UTC  
-> **URL:** https://www.insurancebusinessmag.com/us/news/sme/the-ai-clause-that-may-already-be-on-your-contractor-clients-policy-587395.aspx
-
-## Summary
-
-New data shows 2,369 generative AI exclusion records in force - with no admitted product to replace
+    <p>New data shows 2,369 generative AI exclusion records in force - with no admitted product to replace
 the coverage</p>
   </div>
   <div class="story" style="border-left-color:#006633">
     <h3><a href="https://www.insurancebusinessmag.com/us/news/life-insurance/sun-life-and-wilton-re-form-reinsurer-to-scale-block-acquisitions-587404.aspx" target="_blank">Sun Life and Wilton Re form reinsurer to scale block acquisitions</a></h3>
     <p class="meta">2026-08-25 — Insurance Business</p>
-    <p># Sun Life and Wilton Re form reinsurer to scale block acquisitions
-
-> **Source:** Insurance Business  
-> **Published:** 2026-08-25 13:54 UTC  
-> **URL:** https://www.insurancebusinessmag.com/us/news/life-insurance/sun-life-and-wilton-re-form-reinsurer-to-scale-block-acquisitions-587404.aspx
-
-## Summary
-
-Sun Life and Wilton Re are combining expertise with institutional asset management capacity in a
+    <p>Sun Life and Wilton Re are combining expertise with institutional asset management capacity in a
 structure designed to acquire blocks at scale. The $10 billion target tells you how serious both
-…</p>
+parties are</p>
   </div>
   <div class="story" style="border-left-color:#006633">
     <h3><a href="https://www.cnbc.com/2026/08/25/oil-prices-iran-trump-hormuz.html" target="_blank">Oil drops 3% as U.S. shifts to economic pressure on Iran, easing fears of renewed war</a></h3>
     <p class="meta">2026-08-25 — Energy</p>
-    <p># Oil drops 3% as U.S. shifts to economic pressure on Iran, easing fears of renewed war
-
-> **Source:** Energy  
-> **Published:** 2026-08-25 15:31 UTC  
-> **URL:** https://www.cnbc.com/2026/08/25/oil-prices-iran-trump-hormuz.html
-
-## Summary
-
-Investors shrugged off the latest developments in the U.S.-Iran war.</p>
+    <p>Investors shrugged off the latest developments in the U.S.-Iran war.</p>
   </div>
   <div class="story" style="border-left-color:#006633">
     <h3><a href="https://www.bloomberg.com/news/videos/2026-08-25/odd-lots-what-s-driving-africa-s-economic-growth-video" target="_blank">Odd Lots: What’s Driving Africa’s Economic Growth?</a></h3>
     <p class="meta">2026-08-25 — Bloomberg Markets</p>
-    <p># Odd Lots: What’s Driving Africa’s Economic Growth?
-
-> **Source:** Bloomberg Markets  
-> **Published:** 2026-08-25 16:00 UTC  
-> **URL:** https://www.bloomberg.com/news/videos/2026-08-25/odd-lots-what-s-driving-africa-s-economic-growth-video
-
-## Summary
-
-Africa has seen lots of economic growth in the last few years. According to the United Nations,
+    <p>Africa has seen lots of economic growth in the last few years. According to the United Nations,
 growth across the continent is expected to reach 4.0% in 2026. Joe Studwell, author of How Africa
-Works: Success and Failure on the World's Last Dev…</p>
+Works: Success and Failure on the World's Last Developmental Frontier, joins Tracy Alloway and Joe
+Weisenthal on the Odd Lots podcast to discuss what is driving this economic growth and how it
+compares to Asian counterparts. (Source: Bloomberg)</p>
   </div>
   <div class="story" style="border-left-color:#006633">
     <h3><a href="https://www.marketwatch.com/story/my-father-in-law-passed-away-leaving-a-house-with-tenants-do-i-evict-them-f974428c?mod=mw_rss_topstories" target="_blank">My father-in-law passed away, leaving a house with tenants. Do I evict them?</a></h3>
     <p class="meta">2026-08-25 — MarketWatch.com - Top Stories</p>
-    <p># My father-in-law passed away, leaving a house with tenants. Do I evict them?
-
-> **Source:** MarketWatch.com - Top Stories  
-> **Published:** 2026-08-25 15:30 UTC  
-> **URL:** https://www.marketwatch.com/story/my-father-in-law-passed-away-leaving-a-house-with-tenants-do-i-evict-them-f974428c?mod=mw_rss_topstories
-
-## Summary
-
-“We don’t know whether they have signed leases or are renting month to month.”</p>
+    <p>“We don’t know whether they have signed leases or are renting month to month.”</p>
   </div>
   <div class="story" style="border-left-color:#006633">
     <h3><a href="https://www.insurancejournal.com/news/southcentral/2026/08/25/882798.htm" target="_blank">Inszone Acquires Oklahoma’s Harris Insurance Services</a></h3>
     <p class="meta">2026-08-25 — Insurance Journal</p>
-    <p># Inszone Acquires Oklahoma’s Harris Insurance Services
-
-> **Source:** Insurance Journal  
-> **Published:** 2026-08-25 16:06 UTC  
-> **URL:** https://www.insurancejournal.com/news/southcentral/2026/08/25/882798.htm
-
-## Summary
-
-Inszone Insurance Services announced the acquisition of Harris Insurance Services. This strategic
+    <p>Inszone Insurance Services announced the acquisition of Harris Insurance Services. This strategic
 acquisition strengthens Inszone&#8217;s personal lines footprint in Oklahoma, bringing a respected,
-century-old family agency into the Inszone family. Founded in 1925 by Char…</p>
+century-old family agency into the Inszone family. Founded in 1925 by Charles R. Harris and later
+incorporated &#8230;</p>
   </div>
 </body>
 </html>
