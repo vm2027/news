@@ -41,6 +41,26 @@ page (currently: 2 topics × 2 sources each):
   section), not just the whole-page total — the same way the fix for
   this exact bug was confirmed in PR #11.
 
+## Copilot review is a required check, not optional feedback
+
+On PR #9, GitHub Copilot's automated review caught an HTML-escaping /
+tabnabbing issue that was missed during self-review — after the PR had
+already been merged, requiring a separate follow-up PR (#10) to fix.
+To make Copilot review an actual check-and-balance instead of feedback
+that arrives too late to matter:
+
+- After opening a PR, call `request_copilot_review` and wait for its
+  review comment before merging. Do not merge solely because
+  `mergeable_state` is `"clean"` — that only reflects merge conflicts,
+  not whether Copilot has reviewed the diff.
+- If Copilot flags something, fix it (or explain in this repo why not)
+  before merging, the same way a human reviewer's comment would be
+  handled.
+- Branch protection on `master` (Settings → Branches → require a pull
+  request + at least one approval before merging) is a stronger,
+  GitHub-enforced version of this and should be enabled if not already —
+  it doesn't depend on remembering to do the above.
+
 ## Workflow notes
 
 - Verification of live behavior (RSS feed reachability, Perplexity API
