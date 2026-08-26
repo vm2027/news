@@ -5,7 +5,7 @@ on:
     paths:
       - 'build_index.py'
       - 'verify_index.py'
-      - 'obsidian/**'
+      - 'obsidian/Obsedian_R/**'
       - 'index.html'
 
 jobs:

@@ -61,13 +61,15 @@ def main():
     failures = []
 
     for topic in TOPIC_LABELS:
-        expected = min(source_perplexity_count_for_latest_day(topic), ARTICLES_PER_TOPIC)
+        source_count = source_perplexity_count_for_latest_day(topic)
+        expected = min(source_count, ARTICLES_PER_TOPIC)
         rendered_perplexity, _ = rendered_badge_counts(html_text, topic)
         if rendered_perplexity < expected:
+            cap_note = f" (capped at {ARTICLES_PER_TOPIC})" if source_count > ARTICLES_PER_TOPIC else ""
             failures.append(
-                f"{topic}: source data has {expected} Perplexity article(s) from its "
-                f"most recent day, but only {rendered_perplexity} appear in the "
-                f"rendered page."
+                f"{topic}: source data has {source_count} Perplexity article(s) from its "
+                f"most recent day{cap_note}, but only {rendered_perplexity} appear in the "
+                f"rendered page (expected at least {expected})."
             )
 
     if failures:
