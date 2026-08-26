@@ -40,7 +40,7 @@ when reviewing changes here.
   has previously substituted section/landing pages (e.g.
   `bloomberg.com/markets`) for real article URLs when it couldn't find a
   direct link, and this filter is the backstop against that recurring
-  even after prompt tightening.
+  issue, even after prompt tightening.
 - **Don't assume network calls can be tested from CI or a sandboxed
   agent.** RSS feed reachability and Perplexity API responses can only be
   verified against the real GitHub Actions workflow run
