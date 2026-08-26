@@ -1,0 +1,28 @@
+name: Verify Index
+
+on:
+  pull_request:
+    paths:
+      - 'build_index.py'
+      - 'verify_index.py'
+      - 'obsidian/Obsedian_R/**'
+      - 'index.html'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Rebuild index.html from source data
+        run: python build_index.py
+
+      - name: Verify index.html reflects source data
+        run: python verify_index.py
