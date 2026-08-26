@@ -60,12 +60,13 @@ def load_articles(topic):
     RSS feeds publish far more articles per day than Perplexity does, so
     simply taking the newest ARTICLES_PER_TOPIC would let RSS crowd
     Perplexity-sourced articles out entirely on busy days. Reserve a slot
-    for every Perplexity article from the most recent day represented (its
-    volume is naturally small and bounded, unlike RSS) so none get
-    silently dropped, then fill the rest with the freshest remaining
-    articles. Only today's Perplexity articles are reserved -- older ones
-    are still eligible to fill remaining slots on their own recency, same
-    as RSS, so they don't pin stale Perplexity content ahead of fresh RSS.
+    for every Perplexity article from the most recent date represented in
+    this topic's data (its volume is naturally small and bounded, unlike
+    RSS) so none get silently dropped, then fill the rest with the
+    freshest remaining articles. Only Perplexity articles from that most
+    recent date are reserved -- older ones are still eligible to fill
+    remaining slots on their own recency, same as RSS, so they don't pin
+    stale Perplexity content ahead of fresh RSS.
     """
     folder = OBSIDIAN_DIR / topic
     if not folder.exists():
@@ -86,11 +87,11 @@ def load_articles(topic):
         })
 
     most_recent_date = all_articles[0]["date"] if all_articles else None
-    todays_perplexity_indices = [
+    latest_day_perplexity_indices = [
         i for i, a in enumerate(all_articles)
         if a["via_perplexity"] and a["date"] == most_recent_date
     ]
-    selected = set(todays_perplexity_indices[:ARTICLES_PER_TOPIC])
+    selected = set(latest_day_perplexity_indices[:ARTICLES_PER_TOPIC])
     for i in range(len(all_articles)):
         if len(selected) >= ARTICLES_PER_TOPIC:
             break
