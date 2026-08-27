@@ -49,7 +49,7 @@ def main() -> None:
     # index.html happened to be regenerated (e.g. an unrelated template edit).
     LAST_FETCH_FILE.parent.mkdir(parents=True, exist_ok=True)
     LAST_FETCH_FILE.write_text(
-        datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), encoding="utf-8"
+        datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") + "\n", encoding="utf-8"
     )
 
     print("All topics completed successfully.")

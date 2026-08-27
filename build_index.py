@@ -7,8 +7,9 @@ Run automatically by GitHub Actions after fetch_news.py.
 import html
 import os
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 OBSIDIAN_DIR = Path("obsidian") / "Obsedian_R"
 OUTPUT_FILE = Path("index.html")
@@ -109,7 +110,7 @@ def load_last_fetch():
     try:
         text = LAST_FETCH_FILE.read_text(encoding="utf-8").strip()
         return datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-    except ValueError:
+    except (ValueError, OSError):
         return None
 
 
@@ -132,7 +133,7 @@ def render_story(article, color):
 
 
 def build_html(topics_data, last_fetch_utc):
-    pacific = timezone(timedelta(hours=-7))  # PDT (UTC-7); change to -8 in winter for PST
+    pacific = ZoneInfo("America/Los_Angeles")
     if last_fetch_utc:
         today = last_fetch_utc.astimezone(pacific).strftime("%B %d, %Y at %I:%M %p PT")
     else:
