@@ -144,7 +144,12 @@ def build_html(topics_data):
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>News Aggregator</title>
-  <script defer data-domain="vm2027.github.io" src="https://plausible.io/js/script.js"></script>
+  <!-- Privacy-friendly analytics by Plausible -->
+  <script async src="https://plausible.io/js/pa-o4hLL702isUW-J6J0-m95.js"></script>
+  <script>
+    window.plausible=window.plausible||function(){{(plausible.q=plausible.q||[]).push(arguments)}},plausible.init=plausible.init||function(i){{plausible.o=i||{{}}}};
+    plausible.init()
+  </script>
   <style>
     body {{ font-family: Arial, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 20px; color: #222; overflow-x: hidden; }}
     h1 {{ color: #003366; border-bottom: 3px solid #003366; padding-bottom: 10px; }}
