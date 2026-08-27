@@ -7,9 +7,11 @@ This is the entry point for the scheduled daily task.
 
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).parent
+LAST_FETCH_FILE = ROOT / "obsidian" / "Obsedian_R" / ".last_fetch"
 
 TOPICS = [
     "el-salvador",
@@ -41,6 +43,14 @@ def main() -> None:
 
     if not overall_ok:
         sys.exit(1)
+
+    # Written only on a successful daily fetch, so build_index.py can show
+    # when articles were actually last fetched -- not just the last time
+    # index.html happened to be regenerated (e.g. an unrelated template edit).
+    LAST_FETCH_FILE.parent.mkdir(parents=True, exist_ok=True)
+    LAST_FETCH_FILE.write_text(
+        datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), encoding="utf-8"
+    )
 
     print("All topics completed successfully.")
 

@@ -7,11 +7,12 @@ Run automatically by GitHub Actions after fetch_news.py.
 import html
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 OBSIDIAN_DIR = Path("obsidian") / "Obsedian_R"
 OUTPUT_FILE = Path("index.html")
+LAST_FETCH_FILE = OBSIDIAN_DIR / ".last_fetch"
 
 TOPIC_LABELS = {
     "el-salvador": "🇸🇻 El Salvador",
@@ -99,6 +100,19 @@ def load_articles(topic):
     return [all_articles[i] for i in sorted(selected)][:ARTICLES_PER_TOPIC]
 
 
+def load_last_fetch():
+    """Read the UTC timestamp run_all.py wrote after its last successful
+    fetch. Returns None if it's missing or unparseable, so callers don't
+    fabricate a time that didn't come from an actual fetch."""
+    if not LAST_FETCH_FILE.exists():
+        return None
+    try:
+        text = LAST_FETCH_FILE.read_text(encoding="utf-8").strip()
+        return datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
 def render_story(article, color):
     if article.get("via_perplexity"):
         badge = '<span class="badge badge-perplexity">Perplexity</span>'
@@ -117,11 +131,12 @@ def render_story(article, color):
   </div>"""
 
 
-def build_html(topics_data):
-    from datetime import timezone, timedelta
+def build_html(topics_data, last_fetch_utc):
     pacific = timezone(timedelta(hours=-7))  # PDT (UTC-7); change to -8 in winter for PST
-    now = datetime.now(tz=pacific)
-    today = now.strftime("%B %d, %Y at %I:%M %p PT")
+    if last_fetch_utc:
+        today = last_fetch_utc.astimezone(pacific).strftime("%B %d, %Y at %I:%M %p PT")
+    else:
+        today = "unknown (no fetch has completed yet)"
     nav = "\n    ".join(
         f'<a href="#{slug}">{label}</a>'
         for slug, label in TOPIC_LABELS.items()
@@ -186,7 +201,7 @@ def main():
         if articles:
             topics_data[slug] = articles
 
-    html = build_html(topics_data)
+    html = build_html(topics_data, load_last_fetch())
     OUTPUT_FILE.write_text(html, encoding="utf-8")
     print(f"Built {OUTPUT_FILE} with {sum(len(v) for v in topics_data.values())} articles.")
 
