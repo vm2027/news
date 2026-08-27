@@ -62,6 +62,19 @@ that arrives too late to matter:
   direct pushes to `master` — it doesn't by itself enforce waiting for
   Copilot's review, so still follow the step above.
 
+## Analytics
+
+`build_index.py` embeds a Plausible Analytics script tag
+(`data-domain="vm2027.github.io"`) in `<head>`. Plausible only collects
+data once the domain is registered in the site owner's Plausible
+dashboard (plausible.io or self-hosted) — that's an account/billing
+decision, not something a Claude Code session can do on its own, so it's
+the user's responsibility to complete. Since this is a project page
+(`vm2027.github.io/news/`, not a custom domain), stats are grouped under
+the whole `vm2027.github.io` domain — any other GitHub Pages project
+under the same username would appear in the same Plausible site unless
+filtered by page path in the dashboard.
+
 ## Workflow notes
 
 - Verification of live behavior (RSS feed reachability, Perplexity API
