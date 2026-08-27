@@ -9,7 +9,7 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 OBSIDIAN_DIR = Path("obsidian") / "Obsedian_R"
 OUTPUT_FILE = Path("index.html")
@@ -133,11 +133,16 @@ def render_story(article, color):
 
 
 def build_html(topics_data, last_fetch_utc):
-    pacific = ZoneInfo("America/Los_Angeles")
+    try:
+        pacific, tz_label = ZoneInfo("America/Los_Angeles"), "PT"
+    except ZoneInfoNotFoundError:
+        # No IANA tzdata available on this system (e.g. bare Windows) --
+        # fall back to UTC rather than crashing the whole build.
+        pacific, tz_label = timezone.utc, "UTC"
     if last_fetch_utc:
-        today = last_fetch_utc.astimezone(pacific).strftime("%B %d, %Y at %I:%M %p PT")
+        today = last_fetch_utc.astimezone(pacific).strftime(f"%B %d, %Y at %I:%M %p {tz_label}")
     else:
-        today = "unknown (no fetch has completed yet)"
+        today = "unknown (no valid fetch marker found)"
     nav = "\n    ".join(
         f'<a href="#{slug}">{label}</a>'
         for slug, label in TOPIC_LABELS.items()

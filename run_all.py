@@ -47,10 +47,14 @@ def main() -> None:
     # Written only on a successful daily fetch, so build_index.py can show
     # when articles were actually last fetched -- not just the last time
     # index.html happened to be regenerated (e.g. an unrelated template edit).
+    # Written to a temp file and renamed into place atomically so a run
+    # interrupted mid-write can never leave a partial/corrupt marker.
     LAST_FETCH_FILE.parent.mkdir(parents=True, exist_ok=True)
-    LAST_FETCH_FILE.write_text(
+    tmp_path = LAST_FETCH_FILE.parent / (LAST_FETCH_FILE.name + ".tmp")
+    tmp_path.write_text(
         datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") + "\n", encoding="utf-8"
     )
+    tmp_path.replace(LAST_FETCH_FILE)
 
     print("All topics completed successfully.")
 
