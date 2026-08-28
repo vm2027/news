@@ -62,21 +62,25 @@ def load_articles(topic):
     RSS feeds publish far more articles per day than Perplexity does, so
     simply taking the newest ARTICLES_PER_TOPIC would let RSS crowd
     Perplexity-sourced articles out entirely on busy days. Reserve a slot
-    for every Perplexity article dated the most recent date *among
+    for each Perplexity article dated the most recent date *among
     Perplexity articles* (its volume is naturally small and bounded,
-    unlike RSS) so none get silently dropped, then fill the rest with the
-    freshest remaining articles. Only Perplexity articles from that most
-    recent date are reserved -- older ones are still eligible to fill
-    remaining slots on their own recency, same as RSS, so they don't pin
-    stale Perplexity content ahead of fresh RSS.
+    unlike RSS), up to ARTICLES_PER_TOPIC, so they aren't silently
+    dropped, then fill the rest with the freshest remaining articles.
+    Only Perplexity articles from that most recent date are reserved --
+    older ones are still eligible to fill remaining slots on their own
+    recency, same as RSS, so they don't pin stale Perplexity content
+    ahead of fresh RSS.
 
     Deliberately scoped to Perplexity's own most recent date, not the
-    most recent date across all articles: RSS articles are dated the
-    fetch day, but Perplexity reports each article's true publish date,
-    which is often a day (or more) behind the fetch day even for
-    genuinely fresh results. Using the topic-wide most recent date meant
-    the reservation almost never matched a real Perplexity article
-    whenever RSS had anything dated "today" -- which is every day --
+    most recent date across all articles: an RSS article's date comes
+    from the feed entry's own published/updated timestamp
+    (entry_to_markdown() in fetch_news.py), which for fast-moving feeds
+    is usually the fetch day but isn't guaranteed to be. Perplexity's
+    date is the article's true publish date, which is routinely a day
+    (or more) behind the fetch day even for genuinely fresh results.
+    Using the topic-wide most recent date meant the reservation almost
+    never matched a real Perplexity article whenever RSS had anything
+    dated "today" -- which is effectively every day for these feeds --
     silently zeroing out the Perplexity badge for finance-insurance.
     """
     folder = OBSIDIAN_DIR / topic
