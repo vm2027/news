@@ -69,7 +69,12 @@ import json
 PERPLEXITY_TOPICS: list[str] = ["el-salvador", "finance-insurance"]
 PERPLEXITY_SUPPLEMENTS_RSS: list[str] = ["finance-insurance"]
 PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
-PERPLEXITY_MODEL = "sonar"
+# sonar-pro does deeper search with better-grounded citations than base sonar,
+# which was returning stale dates and section/homepage URLs for real stories
+# (e.g. reuters.com/legal/insurance/ instead of the actual article link) --
+# trialing it here to see if better grounding reduces the post-filter reject
+# rate for finance-insurance. Costs more per call than sonar.
+PERPLEXITY_MODEL = "sonar-pro"
 MAX_PERPLEXITY_ARTICLES = 10
 
 # Perplexity is asked for stories from "the past 48 hours" but the sonar model
