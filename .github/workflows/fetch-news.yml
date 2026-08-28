@@ -2,7 +2,15 @@ name: Fetch Daily News
 
 on:
   schedule:
-    - cron: '0 14 * * *'   # 7:00 AM Pacific (UTC-7) every day
+    # Fires hourly, :17 past the hour, from 14:00-20:00 UTC (~7am-1pm
+    # Pacific depending on DST) instead of a single 7am shot. GitHub's
+    # `schedule` trigger isn't reliable on its own -- runs get delayed
+    # under load, and a missed slot is dropped rather than retried -- so
+    # this retries across the morning. run_all.py's already_fetched_today()
+    # makes every firing after the first a fast no-op, so the retries are
+    # cheap. The :17 offset avoids the top-of-hour, the most congested
+    # minute on GitHub's scheduler.
+    - cron: '17 14-20 * * *'
   workflow_dispatch:         # Allow manual trigger from GitHub UI
 
 jobs:
