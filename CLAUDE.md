@@ -6,7 +6,15 @@ A personal news aggregator. `fetch_news.py` pulls articles from RSS feeds
 file with YAML frontmatter under `obsidian/Obsedian_R/<topic>/`.
 `build_index.py` reads those files and regenerates `index.html`, the
 GitHub Pages site. `.github/workflows/fetch-news.yml` runs both scripts
-daily at 7am Pacific and commits the results.
+and commits the results, targeting once daily around 7am Pacific.
+
+Because GitHub's `schedule` trigger isn't reliable on its own (runs get
+delayed under load, and a missed slot is dropped rather than retried —
+two scheduled runs were silently skipped in a row on 2026-08-27/28), the
+workflow's cron fires hourly across a 14:00-20:00 UTC window instead of
+once. `run_all.py`'s `already_fetched_today()` checks the
+`.last_fetch` marker and no-ops immediately once one firing in the
+window has already succeeded, so the retries cost almost nothing.
 
 Topics currently configured: `el-salvador`, `finance-insurance`.
 `finance-insurance` uses both RSS and Perplexity together (Perplexity

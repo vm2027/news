@@ -2,7 +2,13 @@
 """
 run_all.py — Run fetch_news.py for every known topic in sequence.
 
-This is the entry point for the scheduled daily task.
+This is the entry point for the scheduled daily task. The workflow that
+calls this fires hourly across a morning window (rather than once) because
+GitHub's `schedule` trigger isn't reliable enough on its own -- it can be
+delayed by hours or dropped for a day outright under load, with no
+catch-up. already_fetched_today() makes repeat firings a cheap no-op once
+one of them succeeds, so a single missed or delayed trigger doesn't cost
+the whole day.
 """
 
 import subprocess
@@ -19,7 +25,23 @@ TOPICS = [
 ]
 
 
+def already_fetched_today() -> bool:
+    if not LAST_FETCH_FILE.exists():
+        return False
+    try:
+        last_fetch = datetime.strptime(
+            LAST_FETCH_FILE.read_text(encoding="utf-8").strip(), "%Y-%m-%dT%H:%M:%SZ"
+        ).replace(tzinfo=timezone.utc)
+    except (OSError, ValueError):
+        return False
+    return last_fetch.date() == datetime.now(timezone.utc).date()
+
+
 def main() -> None:
+    if already_fetched_today():
+        print(f"{LAST_FETCH_FILE} already shows a successful fetch for today (UTC) -- skipping.")
+        return
+
     python = sys.executable
     fetch_script = ROOT / "fetch_news.py"
 
