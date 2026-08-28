@@ -8,11 +8,18 @@ This exists because a code review (human, Claude, or Copilot) of
 build_index.py's selection logic can look correct and still ship a bug
 that only shows up in the actual output -- that's exactly what happened
 in PR #11 (a fixed slot count silently dropped a 4th same-day Perplexity
-article) and again while fixing it (an unscoped reservation crowded out
-all of RSS). Both were only caught by manually counting badges in the
-rendered page after the fact. This script makes that count automatic
-and independent: it recomputes the expected count straight from the
-markdown files, not by calling build_index.py's own selection function.
+article), again while fixing it (an unscoped reservation crowded out
+all of RSS), and a third time when this script's own "most recent day"
+computation mirrored build_index.py's topic-wide-date bug closely enough
+that both sides were wrong in the same way and still agreed -- so it
+passed while finance-insurance silently rendered zero Perplexity badges.
+All three were only caught by manually counting badges in the rendered
+page after the fact. This script makes that count automatic and
+independent: it recomputes the expected count straight from the
+markdown files, not by calling build_index.py's own selection function
+-- and, since the third bug, computes "most recent day" scoped to
+Perplexity's own dates, not the topic-wide most recent date, so it
+can't silently share build_index.py's date-scoping bugs again.
 
 Run after build_index.py. Exits non-zero (and prints what's wrong) on
 failure, so it can gate CI and the daily fetch workflow.
@@ -27,18 +34,28 @@ from build_index import ARTICLES_PER_TOPIC, OBSIDIAN_DIR, OUTPUT_FILE, TOPIC_LAB
 def source_perplexity_count_for_latest_day(topic):
     """Independently recompute, from the raw markdown files, how many
     Perplexity articles should be reserved a slot for this topic --
-    without going through build_index.py's own selection logic."""
+    without going through build_index.py's own selection logic.
+
+    Scoped to the most recent date *among Perplexity articles*, not the
+    most recent date across all sources -- RSS's date is typically the
+    fetch day, while Perplexity's is the article's true publish date and
+    is routinely a day behind. Computing this the same way build_index.py
+    does previously meant this check couldn't catch a regression in that
+    exact scoping (it had the identical bug), since both sides would be
+    wrong in the same way and still agree.
+    """
     folder = OBSIDIAN_DIR / topic
     if not folder.exists():
         return 0
-    dated = []
+    perplexity_dates = []
     for md_file in folder.glob("*.md"):
         meta, _ = parse_frontmatter(md_file.read_text(encoding="utf-8"))
-        dated.append((meta.get("date", ""), "perplexity" in meta.get("tags", [])))
-    if not dated:
+        if "perplexity" in meta.get("tags", []):
+            perplexity_dates.append(meta.get("date", ""))
+    if not perplexity_dates:
         return 0
-    most_recent_date = max(date for date, _ in dated)
-    return sum(1 for date, is_perplexity in dated if date == most_recent_date and is_perplexity)
+    most_recent_perplexity_date = max(perplexity_dates)
+    return sum(1 for date in perplexity_dates if date == most_recent_perplexity_date)
 
 
 def rendered_badge_counts(html_text, topic):

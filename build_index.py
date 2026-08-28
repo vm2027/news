@@ -62,13 +62,26 @@ def load_articles(topic):
     RSS feeds publish far more articles per day than Perplexity does, so
     simply taking the newest ARTICLES_PER_TOPIC would let RSS crowd
     Perplexity-sourced articles out entirely on busy days. Reserve a slot
-    for every Perplexity article from the most recent date represented in
-    this topic's data (its volume is naturally small and bounded, unlike
-    RSS) so none get silently dropped, then fill the rest with the
-    freshest remaining articles. Only Perplexity articles from that most
-    recent date are reserved -- older ones are still eligible to fill
-    remaining slots on their own recency, same as RSS, so they don't pin
-    stale Perplexity content ahead of fresh RSS.
+    for each Perplexity article dated the most recent date *among
+    Perplexity articles* (its volume is naturally small and bounded,
+    unlike RSS), up to ARTICLES_PER_TOPIC, so they aren't silently
+    dropped, then fill the rest with the freshest remaining articles.
+    Only Perplexity articles from that most recent date are reserved --
+    older ones are still eligible to fill remaining slots on their own
+    recency, same as RSS, so they don't pin stale Perplexity content
+    ahead of fresh RSS.
+
+    Deliberately scoped to Perplexity's own most recent date, not the
+    most recent date across all articles: an RSS article's date comes
+    from the feed entry's own published/updated timestamp
+    (entry_to_markdown() in fetch_news.py), which for fast-moving feeds
+    is usually the fetch day but isn't guaranteed to be. Perplexity's
+    date is the article's true publish date, which is routinely a day
+    (or more) behind the fetch day even for genuinely fresh results.
+    Using the topic-wide most recent date meant the reservation almost
+    never matched a real Perplexity article whenever RSS had anything
+    dated "today" -- which is effectively every day for these feeds --
+    silently zeroing out the Perplexity badge for finance-insurance.
     """
     folder = OBSIDIAN_DIR / topic
     if not folder.exists():
@@ -88,10 +101,11 @@ def load_articles(topic):
             "via_perplexity": "perplexity" in meta.get("tags", []),
         })
 
-    most_recent_date = all_articles[0]["date"] if all_articles else None
+    perplexity_dates = [a["date"] for a in all_articles if a["via_perplexity"]]
+    most_recent_perplexity_date = max(perplexity_dates) if perplexity_dates else None
     latest_day_perplexity_indices = [
         i for i, a in enumerate(all_articles)
-        if a["via_perplexity"] and a["date"] == most_recent_date
+        if a["via_perplexity"] and a["date"] == most_recent_perplexity_date
     ]
     selected = set(latest_day_perplexity_indices[:ARTICLES_PER_TOPIC])
     for i in range(len(all_articles)):
