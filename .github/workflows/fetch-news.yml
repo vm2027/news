@@ -32,6 +32,13 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
+        with:
+          # The default GITHUB_TOKEN pushes as github-actions[bot], which
+          # the master ruleset doesn't allow to bypass "require PR" /
+          # the "verify" required check (only Repository admin can). This
+          # PAT is scoped to just this repo (Contents: Read and write) and
+          # attributed to the repo owner, whose bypass already covers it.
+          token: ${{ secrets.GH_PUSH_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v6

@@ -64,11 +64,29 @@ that arrives too late to matter:
 - If Copilot flags something, fix it (or explain in this repo why not)
   before merging, the same way a human reviewer's comment would be
   handled.
-- Branch protection on `master` requires a pull request before merging
-  (enabled; no required-approvals count, so it doesn't force a human to
-  click Approve on every PR). This is a GitHub-enforced backstop against
-  direct pushes to `master` — it doesn't by itself enforce waiting for
-  Copilot's review, so still follow the step above.
+- A ruleset on `master` requires a pull request before merging and a
+  required status check named `"verify"` that no workflow in this repo
+  reports — so it can never be satisfied, and it blocks *any* direct
+  push to `master`, including the daily fetch workflow's own commit.
+  Only the "Repository admin" role is on the bypass list (checked
+  2026-08-28); `github-actions[bot]` (the identity behind the default
+  `GITHUB_TOKEN`) is not, and isn't selectable as a bypass actor on this
+  repo at all. See "Daily fetch push authentication" below for how
+  `fetch-news.yml` works around this.
+
+## Daily fetch push authentication
+
+`fetch-news.yml`'s checkout step passes `token: ${{ secrets.GH_PUSH_TOKEN }}`
+instead of relying on the default `GITHUB_TOKEN`. This is required, not
+optional: the default token pushes as `github-actions[bot]`, which the
+`master` ruleset blocks outright (see above) — every run fails at the
+commit/push step otherwise, exactly as runs #33-35 did on 2026-08-28.
+`GH_PUSH_TOKEN` is a fine-grained PAT scoped to just this repo
+(Contents: read/write), attributed to the repo owner's account, which
+the ruleset's "Repository admin" bypass does cover. It has an expiration
+and will need to be regenerated and the secret updated when it lapses —
+if the workflow starts failing at "Commit and push new articles" with a
+403/protected-branch error, check that first.
 
 ## Analytics
 
