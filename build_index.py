@@ -62,8 +62,16 @@ ARTICLES_PER_TOPIC = 10
 # Perplexity articles than ARTICLES_PER_TOPIC (routine now that a single
 # fetch can save 7+ of them, see load_articles()) would reserve every slot
 # and crowd RSS out entirely -- the mirror image of the original bug this
-# reservation exists to prevent. Half keeps both sources represented.
+# reservation exists to prevent.
 PERPLEXITY_RESERVED_SLOTS = ARTICLES_PER_TOPIC // 2
+# Mirror-image reservation for RSS: PERPLEXITY_RESERVED_SLOTS alone only
+# guarantees a *floor* for Perplexity, not a *ceiling* -- the leftover
+# "freshest remaining articles" fill step that runs after it picks whatever
+# is newest regardless of source, so it could still let Perplexity dominate
+# if RSS's freshest items happen to rank behind Perplexity's leftovers (both
+# reservations are capped at ARTICLES_PER_TOPIC // 2 so together they can't
+# exceed ARTICLES_PER_TOPIC and leave no room for the fill step).
+RSS_RESERVED_SLOTS = ARTICLES_PER_TOPIC // 2
 
 
 def load_articles(topic):
@@ -75,12 +83,21 @@ def load_articles(topic):
     for each Perplexity article dated within the last
     PERPLEXITY_MAX_ARTICLE_AGE_DAYS days (its volume is naturally small
     and bounded, unlike RSS), up to PERPLEXITY_RESERVED_SLOTS, so they
-    aren't silently dropped, then fill the rest with the freshest
-    remaining articles. Older or overflow Perplexity articles are still
-    eligible to fill remaining slots on their own recency, same as RSS,
-    so they don't pin stale Perplexity content ahead of fresh RSS, and
-    the reservation itself is capped well below ARTICLES_PER_TOPIC so a
-    busy Perplexity day can't crowd RSS out entirely either.
+    aren't silently dropped -- and reserve slots for RSS the same way, up
+    to RSS_RESERVED_SLOTS, since a Perplexity reservation alone only
+    guarantees a floor for Perplexity, not a ceiling: the "fill the rest
+    with freshest remaining" step that runs after both reservations
+    picks whichever articles are newest regardless of source, so without
+    its own reservation RSS could still get crowded out through that
+    fill step even with PERPLEXITY_RESERVED_SLOTS in place. Older or
+    overflow articles from either source are still eligible to fill
+    remaining slots on their own recency, so neither reservation pins
+    stale content ahead of genuinely fresher articles from the other
+    source. A topic with real scarcity in one source (e.g. el-salvador's
+    RSS feeds, keyword-filtered down to a trickle) still reflects that
+    scarcity here -- these reservations guarantee a source isn't crowded
+    out when it has enough recent supply to fill its own slots, not a
+    fixed split regardless of what actually exists.
 
     Deliberately scoped to the same freshness window fetch_news.py
     itself uses to accept a Perplexity result (PERPLEXITY_MAX_ARTICLE_AGE_DAYS),
@@ -126,7 +143,9 @@ def load_articles(topic):
         i for i, a in enumerate(all_articles)
         if a["via_perplexity"] and a["date"] >= cutoff
     ]
+    rss_indices = [i for i, a in enumerate(all_articles) if not a["via_perplexity"]]
     selected = set(recent_perplexity_indices[:PERPLEXITY_RESERVED_SLOTS])
+    selected.update(rss_indices[:RSS_RESERVED_SLOTS])
     for i in range(len(all_articles)):
         if len(selected) >= ARTICLES_PER_TOPIC:
             break
