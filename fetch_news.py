@@ -66,6 +66,8 @@ MAX_ARTICLES_PER_FEED = 5
 import os
 import json
 
+from constants import PERPLEXITY_MAX_ARTICLE_AGE_DAYS
+
 PERPLEXITY_TOPICS: list[str] = ["el-salvador", "finance-insurance"]
 PERPLEXITY_SUPPLEMENTS_RSS: list[str] = ["finance-insurance"]
 PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
@@ -75,12 +77,18 @@ PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
 # trialing it here to see if better grounding reduces the post-filter reject
 # rate for finance-insurance. Costs more per call than sonar.
 PERPLEXITY_MODEL = "sonar-pro"
-MAX_PERPLEXITY_ARTICLES = 10
+MAX_PERPLEXITY_ARTICLES = 15
+# Constrains Perplexity's own search to recent sources server-side, instead of
+# relying solely on the prompt text ("past 48 hours") and our own post-filter
+# to catch what the model returns anyway -- el-salvador once got back a batch
+# where every result was months old despite the prompt. "week" rather than
+# "day" so it doesn't undercut PERPLEXITY_MAX_ARTICLE_AGE_DAYS below (a 24h
+# filter would be tighter than what we actually accept).
+PERPLEXITY_SEARCH_RECENCY_FILTER = "week"
 
-# Perplexity is asked for stories from "the past 48 hours" but the sonar model
-# sometimes returns older stories it turned up during search. Allow a little
-# slack for timezone/model imprecision, but discard anything clearly stale.
-PERPLEXITY_MAX_ARTICLE_AGE_DAYS = 4
+# PERPLEXITY_MAX_ARTICLE_AGE_DAYS lives in constants.py (imported above) so
+# build_index.py/verify_index.py can use it without pulling in this file's
+# third-party dependencies.
 
 PERPLEXITY_QUERIES: dict[str, str] = {
     "el-salvador": "El Salvador news politics economy security Bukele",
@@ -164,7 +172,8 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
             {"role": "system", "content": "You are a news research assistant. Always return valid JSON."},
             {"role": "user", "content": prompt},
         ],
-        "max_tokens": 3000,
+        "search_recency_filter": PERPLEXITY_SEARCH_RECENCY_FILTER,
+        "max_tokens": 4500,
     }
 
     try:
