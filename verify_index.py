@@ -1,8 +1,11 @@
 """
 verify_index.py
 Sanity-checks that index.html actually reflects the source article data --
-specifically, that every recent-enough Perplexity article in a topic's
-data made it into the rendered page.
+specifically, that recent-enough Perplexity articles in a topic's data
+made it into the rendered page, up to the same PERPLEXITY_RESERVED_SLOTS
+cap build_index.py itself applies (this does not claim every recent
+Perplexity article is shown -- once a topic has more of them than the
+cap, some are expected to be left out in favor of RSS, by design).
 
 This exists because a code review (human, Claude, or Copilot) of
 build_index.py's selection logic can look correct and still ship a bug
@@ -46,7 +49,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 
 from build_index import PERPLEXITY_RESERVED_SLOTS, OBSIDIAN_DIR, OUTPUT_FILE, TOPIC_LABELS, parse_frontmatter
-from fetch_news import PERPLEXITY_MAX_ARTICLE_AGE_DAYS
+from constants import PERPLEXITY_MAX_ARTICLE_AGE_DAYS
 
 
 def source_recent_perplexity_count(topic):
@@ -113,8 +116,8 @@ def main():
 
     print(
         "index.html verification passed: every topic's recent (within "
-        f"{PERPLEXITY_MAX_ARTICLE_AGE_DAYS} days) Perplexity articles are all "
-        "represented in the rendered page."
+        f"{PERPLEXITY_MAX_ARTICLE_AGE_DAYS} days) Perplexity articles are represented "
+        f"in the rendered page, up to the {PERPLEXITY_RESERVED_SLOTS}-slot reservation cap."
     )
 
 

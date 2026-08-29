@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fetch_news import PERPLEXITY_MAX_ARTICLE_AGE_DAYS
+from constants import PERPLEXITY_MAX_ARTICLE_AGE_DAYS
 
 OBSIDIAN_DIR = Path("obsidian") / "Obsedian_R"
 OUTPUT_FILE = Path("index.html")
