@@ -7,9 +7,11 @@ Run automatically by GitHub Actions after fetch_news.py.
 import html
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from constants import PERPLEXITY_MAX_ARTICLE_AGE_DAYS
 
 OBSIDIAN_DIR = Path("obsidian") / "Obsedian_R"
 OUTPUT_FILE = Path("index.html")
@@ -55,6 +57,22 @@ def parse_frontmatter(text):
 
 ARTICLES_PER_TOPIC = 10
 
+# Cap on how many of ARTICLES_PER_TOPIC's slots a Perplexity reservation can
+# claim. Without a sub-cap, a topic that has accumulated more recent-enough
+# Perplexity articles than ARTICLES_PER_TOPIC (routine now that a single
+# fetch can save 7+ of them, see load_articles()) would reserve every slot
+# and crowd RSS out entirely -- the mirror image of the original bug this
+# reservation exists to prevent.
+PERPLEXITY_RESERVED_SLOTS = ARTICLES_PER_TOPIC // 2
+# Mirror-image reservation for RSS: PERPLEXITY_RESERVED_SLOTS alone only
+# guarantees a *floor* for Perplexity, not a *ceiling* -- the leftover
+# "freshest remaining articles" fill step that runs after it picks whatever
+# is newest regardless of source, so it could still let Perplexity dominate
+# if RSS's freshest items happen to rank behind Perplexity's leftovers (both
+# reservations are capped at ARTICLES_PER_TOPIC // 2 so together they can't
+# exceed ARTICLES_PER_TOPIC and leave no room for the fill step).
+RSS_RESERVED_SLOTS = ARTICLES_PER_TOPIC // 2
+
 
 def load_articles(topic):
     """Load markdown articles for a topic, newest first.
@@ -62,26 +80,50 @@ def load_articles(topic):
     RSS feeds publish far more articles per day than Perplexity does, so
     simply taking the newest ARTICLES_PER_TOPIC would let RSS crowd
     Perplexity-sourced articles out entirely on busy days. Reserve a slot
-    for each Perplexity article dated the most recent date *among
-    Perplexity articles* (its volume is naturally small and bounded,
-    unlike RSS), up to ARTICLES_PER_TOPIC, so they aren't silently
-    dropped, then fill the rest with the freshest remaining articles.
-    Only Perplexity articles from that most recent date are reserved --
-    older ones are still eligible to fill remaining slots on their own
-    recency, same as RSS, so they don't pin stale Perplexity content
-    ahead of fresh RSS.
+    for each Perplexity article dated within the last
+    PERPLEXITY_MAX_ARTICLE_AGE_DAYS days (its volume is naturally small
+    and bounded, unlike RSS), up to PERPLEXITY_RESERVED_SLOTS, so they
+    aren't silently dropped -- and reserve slots for RSS the same way, up
+    to RSS_RESERVED_SLOTS, since a Perplexity reservation alone only
+    guarantees a floor for Perplexity, not a ceiling: the "fill the rest
+    with freshest remaining" step that runs after both reservations
+    picks whichever articles are newest regardless of source, so without
+    its own reservation RSS could still get crowded out through that
+    fill step even with PERPLEXITY_RESERVED_SLOTS in place. Overflow
+    articles from either source (beyond their own reservation) are still
+    eligible to fill remaining slots on their own recency. Note that the
+    two reservations, unlike the fill step, are NOT recency-ordered
+    against each other: when both sources have at least
+    ARTICLES_PER_TOPIC // 2 worth of eligible supply, this deliberately
+    produces a fixed half/half split, including cases where an older
+    reserved RSS article is shown ahead of a newer non-reserved
+    Perplexity one (or vice versa) -- that's the tradeoff for guaranteeing
+    both sources a floor. A topic with real scarcity in one source (e.g.
+    el-salvador's RSS feeds, keyword-filtered down to a trickle) still
+    reflects that scarcity: a reservation only guarantees a source isn't
+    crowded out when it has enough supply to fill its own slots, it
+    doesn't fabricate supply that doesn't exist.
 
-    Deliberately scoped to Perplexity's own most recent date, not the
-    most recent date across all articles: an RSS article's date comes
-    from the feed entry's own published/updated timestamp
+    Deliberately scoped to the same freshness window fetch_news.py
+    itself uses to accept a Perplexity result (PERPLEXITY_MAX_ARTICLE_AGE_DAYS),
+    not a single "most recent date": an RSS article's date comes from
+    the feed entry's own published/updated timestamp
     (entry_to_markdown() in fetch_news.py), which for fast-moving feeds
     is usually the fetch day but isn't guaranteed to be. Perplexity's
     date is the article's true publish date, which is routinely a day
-    (or more) behind the fetch day even for genuinely fresh results.
-    Using the topic-wide most recent date meant the reservation almost
-    never matched a real Perplexity article whenever RSS had anything
-    dated "today" -- which is effectively every day for these feeds --
-    silently zeroing out the Perplexity badge for finance-insurance.
+    (or more) behind the fetch day even for genuinely fresh results, and
+    with PERPLEXITY_SEARCH_RECENCY_FILTER="week" a single fetch can
+    legitimately return articles spanning several distinct days. A
+    single-most-recent-day reservation only protected whichever one of
+    those days matched the fetch day, so the other fresh-but-not-newest
+    days lost their reservation and got crowded out by same-day RSS --
+    exactly what happened to finance-insurance on 2026-08-29, when only
+    1 of 7 freshly-fetched Perplexity articles was dated that day.
+    Widening the window to fix that (before PERPLEXITY_RESERVED_SLOTS
+    existed) over-corrected into the opposite bug the same day: enough
+    Perplexity articles had accumulated within the window that the
+    reservation claimed all ARTICLES_PER_TOPIC slots, rendering 0 RSS
+    articles for finance-insurance.
     """
     folder = OBSIDIAN_DIR / topic
     if not folder.exists():
@@ -101,13 +143,14 @@ def load_articles(topic):
             "via_perplexity": "perplexity" in meta.get("tags", []),
         })
 
-    perplexity_dates = [a["date"] for a in all_articles if a["via_perplexity"]]
-    most_recent_perplexity_date = max(perplexity_dates) if perplexity_dates else None
-    latest_day_perplexity_indices = [
+    cutoff = (datetime.now(timezone.utc).date() - timedelta(days=PERPLEXITY_MAX_ARTICLE_AGE_DAYS)).isoformat()
+    recent_perplexity_indices = [
         i for i, a in enumerate(all_articles)
-        if a["via_perplexity"] and a["date"] == most_recent_perplexity_date
+        if a["via_perplexity"] and a["date"] >= cutoff
     ]
-    selected = set(latest_day_perplexity_indices[:ARTICLES_PER_TOPIC])
+    rss_indices = [i for i, a in enumerate(all_articles) if not a["via_perplexity"]]
+    selected = set(recent_perplexity_indices[:PERPLEXITY_RESERVED_SLOTS])
+    selected.update(rss_indices[:RSS_RESERVED_SLOTS])
     for i in range(len(all_articles)):
         if len(selected) >= ARTICLES_PER_TOPIC:
             break
