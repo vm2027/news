@@ -103,9 +103,10 @@ def main():
         if rendered_perplexity < expected:
             cap_note = f" (capped at {PERPLEXITY_RESERVED_SLOTS})" if source_count > PERPLEXITY_RESERVED_SLOTS else ""
             failures.append(
-                f"{topic}: source data has {source_count} Perplexity article(s) within "
-                f"the last {PERPLEXITY_MAX_ARTICLE_AGE_DAYS} days{cap_note}, but only "
-                f"{rendered_perplexity} appear in the rendered page (expected at least {expected})."
+                f"{topic}: source data has {source_count} Perplexity article(s) dated on "
+                f"or after today minus {PERPLEXITY_MAX_ARTICLE_AGE_DAYS} calendar days (UTC)"
+                f"{cap_note}, but only {rendered_perplexity} appear in the rendered page "
+                f"(expected at least {expected})."
             )
 
     if failures:
@@ -115,9 +116,10 @@ def main():
         sys.exit(1)
 
     print(
-        "index.html verification passed: every topic's recent (within "
-        f"{PERPLEXITY_MAX_ARTICLE_AGE_DAYS} days) Perplexity articles are represented "
-        f"in the rendered page, up to the {PERPLEXITY_RESERVED_SLOTS}-slot reservation cap."
+        "index.html verification passed: every topic's Perplexity articles dated on "
+        f"or after today minus {PERPLEXITY_MAX_ARTICLE_AGE_DAYS} calendar days (UTC) are "
+        f"represented in the rendered page, up to the {PERPLEXITY_RESERVED_SLOTS}-slot "
+        "reservation cap."
     )
 
 

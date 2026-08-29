@@ -89,15 +89,20 @@ def load_articles(topic):
     with freshest remaining" step that runs after both reservations
     picks whichever articles are newest regardless of source, so without
     its own reservation RSS could still get crowded out through that
-    fill step even with PERPLEXITY_RESERVED_SLOTS in place. Older or
-    overflow articles from either source are still eligible to fill
-    remaining slots on their own recency, so neither reservation pins
-    stale content ahead of genuinely fresher articles from the other
-    source. A topic with real scarcity in one source (e.g. el-salvador's
-    RSS feeds, keyword-filtered down to a trickle) still reflects that
-    scarcity here -- these reservations guarantee a source isn't crowded
-    out when it has enough recent supply to fill its own slots, not a
-    fixed split regardless of what actually exists.
+    fill step even with PERPLEXITY_RESERVED_SLOTS in place. Overflow
+    articles from either source (beyond their own reservation) are still
+    eligible to fill remaining slots on their own recency. Note that the
+    two reservations, unlike the fill step, are NOT recency-ordered
+    against each other: when both sources have at least
+    ARTICLES_PER_TOPIC // 2 worth of eligible supply, this deliberately
+    produces a fixed half/half split, including cases where an older
+    reserved RSS article is shown ahead of a newer non-reserved
+    Perplexity one (or vice versa) -- that's the tradeoff for guaranteeing
+    both sources a floor. A topic with real scarcity in one source (e.g.
+    el-salvador's RSS feeds, keyword-filtered down to a trickle) still
+    reflects that scarcity: a reservation only guarantees a source isn't
+    crowded out when it has enough supply to fill its own slots, it
+    doesn't fabricate supply that doesn't exist.
 
     Deliberately scoped to the same freshness window fetch_news.py
     itself uses to accept a Perplexity result (PERPLEXITY_MAX_ARTICLE_AGE_DAYS),
