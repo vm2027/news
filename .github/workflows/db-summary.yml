@@ -10,6 +10,11 @@ on:
 jobs:
   query:
     runs-on: ubuntu-latest
+    # workflow_dispatch can be run against any branch from the UI/API, and
+    # this job injects DATABASE_URL -- restricting to master means the
+    # secret only ever runs against reviewed, merged code, never an
+    # unmerged PR branch someone dispatched this against.
+    if: github.ref == 'refs/heads/master'
 
     permissions:
       contents: read        # Read-only: this job never writes anything
