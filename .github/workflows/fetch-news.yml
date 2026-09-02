@@ -52,6 +52,11 @@ jobs:
         run: python run_all.py
         env:
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          # Optional: Aiven Postgres connection string for the topic x
+          # origin article log (see db.py). If the DATABASE_URL secret
+          # isn't set, this is empty and db.py silently skips DB logging
+          # -- the fetch and file output are unaffected either way.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Update index.html with latest articles
         run: python build_index.py

@@ -22,13 +22,15 @@ import logging
 import re
 import textwrap
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
 import feedparser
 import requests
 from slugify import slugify
+
+import db
 
 # ---------------------------------------------------------------------------
 # Basic logging
@@ -227,8 +229,8 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
     return fresh_articles
 
 
-def perplexity_article_to_markdown(article: dict, topic: str) -> tuple[str, str, str]:
-    """Convert a Perplexity article dict to (filename, markdown_content, url)."""
+def perplexity_article_to_markdown(article: dict, topic: str) -> tuple[str, str, str, str, date | None]:
+    """Convert a Perplexity article dict to (filename, markdown_content, url, title, published_date)."""
     title = str(article.get("title", "Untitled")).strip()
     url = str(article.get("url", ""))
     date_str = str(article.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d")))
@@ -269,7 +271,11 @@ def perplexity_article_to_markdown(article: dict, topic: str) -> tuple[str, str,
     slug = slugify(title, max_length=60, separator="-")
     short = hashlib.sha1(url.encode()).hexdigest()[:8] if url else "000000"
     filename = f"{date_str}_{slug}_{short}.md"
-    return filename, frontmatter + "\n\n" + body, url
+    try:
+        published_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        published_date = None
+    return filename, frontmatter + "\n\n" + body, url, title, published_date
 
 
 # ---------------------------------------------------------------------------
@@ -397,9 +403,11 @@ def fetch_feed(url: str, retries: int = 3, backoff: float = 1.0) -> feedparser.F
 # Markdown generation
 # ---------------------------------------------------------------------------
 
-def entry_to_markdown(entry: feedparser.FeedParserDict, topic: str, source_name: str) -> tuple[str, str, str]:
+def entry_to_markdown(
+    entry: feedparser.FeedParserDict, topic: str, source_name: str
+) -> tuple[str, str, str, str, date | None]:
     """
-    Convert a feed entry to (filename, markdown_content, url).
+    Convert a feed entry to (filename, markdown_content, url, title, published_date).
 
     The markdown uses YAML frontmatter compatible with Obsidian.
     """
@@ -487,7 +495,7 @@ def entry_to_markdown(entry: feedparser.FeedParserDict, topic: str, source_name:
     else:
         filename = f"{date_str}_{slug}.md"
 
-    return filename, content, url
+    return filename, content, url, title, pub_dt.date()
 
 
 # ---------------------------------------------------------------------------
@@ -550,6 +558,12 @@ def main() -> None:
     total_saved = 0
     total_skipped = 0
 
+    # Optional: log each saved article to Aiven Postgres for a topic x origin
+    # dashboard. get_connection() returns None either way, but only silently
+    # when DATABASE_URL is unset -- an unreachable DB logs a warning first.
+    # record_article() then no-ops on a None connection either way.
+    db_conn = db.get_connection()
+
     # ---------------------------------------------------------------------------
     # Perplexity path — replaces RSS for configured topics, or supplements it
     # for topics listed in PERPLEXITY_SUPPLEMENTS_RSS (both sources run).
@@ -563,12 +577,16 @@ def main() -> None:
             sys.exit(1)
         for article in articles:
             try:
-                filename, content, article_url = perplexity_article_to_markdown(article, topic)
+                filename, content, article_url, title, published_date = perplexity_article_to_markdown(article, topic)
                 if article_url and article_exists(topic, article_url):
                     log.info("  → Skipped (already saved): %s", article_url)
                     total_skipped += 1
                     continue
                 out_path = save_article(topic, filename, content)
+                db.record_article(
+                    db_conn, topic, "perplexity", str(article.get("source", "Perplexity")),
+                    title, article_url, published_date,
+                )
                 log.info("  ✓ %s", out_path.name)
                 total_saved += 1
             except Exception as exc:
@@ -576,6 +594,7 @@ def main() -> None:
                 total_skipped += 1
         log.info("Perplexity done. %d articles saved, %d skipped so far.", total_saved, total_skipped)
         if topic not in PERPLEXITY_SUPPLEMENTS_RSS:
+            db.close(db_conn)
             log.info("Done. %d articles saved, %d skipped.", total_saved, total_skipped)
             return
         log.info("Continuing to RSS feeds for '%s'...", topic)
@@ -597,7 +616,7 @@ def main() -> None:
 
         for entry in entries:
             try:
-                filename, content, article_url = entry_to_markdown(entry, topic, source_name)
+                filename, content, article_url, title, published_date = entry_to_markdown(entry, topic, source_name)
 
                 # Keyword filter: skip articles that don't mention any topic keyword
                 if keywords:
@@ -613,6 +632,7 @@ def main() -> None:
                     total_skipped += 1
                     continue
                 out_path = save_article(topic, filename, content)
+                db.record_article(db_conn, topic, "rss", source_name, title, article_url, published_date)
                 log.info("  ✓ %s", out_path.name)
                 total_saved += 1
             except Exception as exc:  # noqa: BLE001
@@ -620,6 +640,8 @@ def main() -> None:
                 total_skipped += 1
 
         log.info("")
+
+    db.close(db_conn)
 
     log.info("Done. %d articles saved, %d errors.", total_saved, total_skipped)
     log.info("Output: %s", OBSIDIAN_DIR / topic)
