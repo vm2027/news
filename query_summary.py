@@ -9,14 +9,21 @@ to run via the "DB Summary" workflow (workflow_dispatch only, never
 scheduled) rather than from a local shell.
 """
 
+import os
 import sys
 
 import db
 
 
 def main() -> None:
+    if not os.environ.get("DATABASE_URL", ""):
+        print("DATABASE_URL is not set -- nothing to report.", file=sys.stderr)
+        sys.exit(1)
+
     conn = db.get_connection()
     if conn is None:
+        # get_connection() already logged a warning with the specific
+        # reason (psycopg missing, connect failed, schema setup failed).
         print("Could not connect (see warning above) -- nothing to report.", file=sys.stderr)
         sys.exit(1)
 

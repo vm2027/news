@@ -11,6 +11,9 @@ jobs:
   query:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read        # Read-only: this job never writes anything
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -21,7 +24,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install "psycopg[binary]==3.2.3"
+        run: pip install -r requirements.txt
 
       - name: Query per-topic/origin article counts
         run: python query_summary.py
