@@ -559,8 +559,9 @@ def main() -> None:
     total_skipped = 0
 
     # Optional: log each saved article to Aiven Postgres for a topic x origin
-    # dashboard. get_connection() returns None (silently) if DATABASE_URL
-    # isn't set or the DB is unreachable -- record_article() then no-ops.
+    # dashboard. get_connection() returns None either way, but only silently
+    # when DATABASE_URL is unset -- an unreachable DB logs a warning first.
+    # record_article() then no-ops on a None connection either way.
     db_conn = db.get_connection()
 
     # ---------------------------------------------------------------------------
