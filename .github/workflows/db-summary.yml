@@ -1,0 +1,29 @@
+name: DB Summary
+
+# Manual-only: an on-demand read of the Aiven Postgres articles table
+# (per-topic x origin counts) via query_summary.py, in place of a
+# persistent Grafana dashboard. Never scheduled, and never writes
+# anything -- no checkout token or push step needed.
+on:
+  workflow_dispatch:
+
+jobs:
+  query:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install "psycopg[binary]==3.2.3"
+
+      - name: Query per-topic/origin article counts
+        run: python query_summary.py
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
