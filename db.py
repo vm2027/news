@@ -26,6 +26,19 @@ from typing import Any
 
 log = logging.getLogger("news.db")
 
+
+def _warn(msg: str, exc: Exception) -> None:
+    """Log a DB-operation warning with only the exception type, not str(exc).
+
+    psycopg error messages (connection failures especially, but not only
+    them) can include the DSN or other connection details -- host, user,
+    sometimes the password -- verbatim. Logging the full text would leak
+    that into GitHub Actions logs, so every warning here goes through this
+    instead of an inline %s on the exception.
+    """
+    log.warning("%s: %s", msg, type(exc).__name__)
+
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS articles (
     id SERIAL PRIMARY KEY,
@@ -86,11 +99,7 @@ def get_connection() -> Any | None:
     try:
         conn = psycopg.connect(dsn, connect_timeout=10)
     except Exception as exc:  # noqa: BLE001
-        # Deliberately log only the exception type, not str(exc): psycopg's
-        # connection-failure messages can include the DSN (host/user, and
-        # sometimes the password) verbatim, which would otherwise leak into
-        # GitHub Actions logs.
-        log.warning("Could not connect to DATABASE_URL: %s", type(exc).__name__)
+        _warn("Could not connect to DATABASE_URL", exc)
         return None
     log.info("DB: connected to Postgres for article logging")
 
@@ -101,7 +110,7 @@ def get_connection() -> Any | None:
             cur.execute(_MIGRATE_ADD_COMPOSITE_UNIQUE)
         conn.commit()
     except Exception as exc:  # noqa: BLE001
-        log.warning("Could not ensure 'articles' table exists: %s", exc)
+        _warn("Could not ensure 'articles' table exists", exc)
         close(conn)
         return None
 
@@ -138,7 +147,7 @@ def record_article(
         else:
             log.info("DB: %s/%s article already recorded, skipped %s", topic, origin, url)
     except Exception as exc:  # noqa: BLE001
-        log.warning("Could not record article in DB (%s): %s", url, exc)
+        _warn(f"Could not record article in DB ({url})", exc)
         try:
             conn.rollback()
         except Exception:  # noqa: BLE001
