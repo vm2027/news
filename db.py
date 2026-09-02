@@ -4,9 +4,10 @@ db.py — optional Aiven PostgreSQL logging of fetched articles.
 
 Purely additive: the markdown files under obsidian/Obsedian_R/ remain the
 source of truth for the site. This module lets fetch_news.py also record
-each saved article as a row (topic, origin, source, url, published_date)
-so a dashboard (e.g. Aiven Grafana) can chart volume per topic x origin
-over time -- the per-segment breakdown the site itself doesn't show.
+each saved article as a row (topic, origin, source, title, url,
+published_date) so a dashboard (e.g. Aiven Grafana) can chart volume
+per topic x origin over time -- the per-segment breakdown the site
+itself doesn't show.
 
 Best-effort by design: if DATABASE_URL isn't set, this module skips DB
 logging silently (get_connection() returns None -- the normal case
