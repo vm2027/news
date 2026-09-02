@@ -54,7 +54,13 @@ _MIGRATE_ADD_COMPOSITE_UNIQUE = """
 DO $$
 BEGIN
     ALTER TABLE articles ADD CONSTRAINT articles_topic_origin_url_key UNIQUE (topic, origin, url);
-EXCEPTION WHEN duplicate_object THEN
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN
+    -- duplicate_object: the constraint itself already exists.
+    -- duplicate_table: a UNIQUE constraint backs itself with an index of
+    -- the same name, and re-adding it collides on that index/relation
+    -- name instead -- observed for real running this migration twice in
+    -- one workflow run (fetch_news.py is invoked once per topic, each a
+    -- fresh process, each calling get_connection()).
     NULL;
 END $$;
 """
