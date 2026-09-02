@@ -58,6 +58,7 @@ def get_connection() -> Any | None:
     except Exception as exc:  # noqa: BLE001
         log.warning("Could not connect to DATABASE_URL: %s", exc)
         return None
+    log.info("DB: connected to Postgres for article logging")
 
     try:
         with conn.cursor() as cur:
@@ -90,10 +91,16 @@ def record_article(
                 INSERT INTO articles (topic, origin, source, title, url, published_date)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (url) DO NOTHING
+                RETURNING id
                 """,
                 (topic, origin, source, title, url, published_date),
             )
+            inserted = cur.fetchone() is not None
         conn.commit()
+        if inserted:
+            log.info("DB: recorded %s/%s article %s", topic, origin, url)
+        else:
+            log.info("DB: %s/%s article already recorded, skipped %s", topic, origin, url)
     except Exception as exc:  # noqa: BLE001
         log.warning("Could not record article in DB (%s): %s", url, exc)
         conn.rollback()
