@@ -8,10 +8,12 @@ each saved article as a row (topic, origin, source, url, published_date)
 so a dashboard (e.g. Aiven Grafana) can chart volume per topic x origin
 over time -- the per-segment breakdown the site itself doesn't show.
 
-Best-effort by design: if DATABASE_URL isn't set, psycopg isn't
-installed, or the connection/insert fails, every function here logs a
-warning and returns quietly. A daily fetch must never fail because the
-database is down.
+Best-effort by design: if DATABASE_URL isn't set, this module skips DB
+logging silently (get_connection() returns None -- the normal case
+before the secret exists). If psycopg isn't installed or the
+connection/insert/close itself fails, it logs a warning and no-ops
+instead of raising. A daily fetch must never fail because the database
+is down.
 """
 
 from __future__ import annotations
@@ -66,7 +68,7 @@ def get_connection() -> Any | None:
         conn.commit()
     except Exception as exc:  # noqa: BLE001
         log.warning("Could not ensure 'articles' table exists: %s", exc)
-        conn.close()
+        close(conn)
         return None
 
     return conn
@@ -103,7 +105,10 @@ def record_article(
             log.info("DB: %s/%s article already recorded, skipped %s", topic, origin, url)
     except Exception as exc:  # noqa: BLE001
         log.warning("Could not record article in DB (%s): %s", url, exc)
-        conn.rollback()
+        try:
+            conn.rollback()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def close(conn: Any | None) -> None:

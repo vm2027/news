@@ -229,7 +229,7 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
     return fresh_articles
 
 
-def perplexity_article_to_markdown(article: dict, topic: str) -> tuple[str, str, str, str, "date | None"]:
+def perplexity_article_to_markdown(article: dict, topic: str) -> tuple[str, str, str, str, date | None]:
     """Convert a Perplexity article dict to (filename, markdown_content, url, title, published_date)."""
     title = str(article.get("title", "Untitled")).strip()
     url = str(article.get("url", ""))
@@ -405,7 +405,7 @@ def fetch_feed(url: str, retries: int = 3, backoff: float = 1.0) -> feedparser.F
 
 def entry_to_markdown(
     entry: feedparser.FeedParserDict, topic: str, source_name: str
-) -> tuple[str, str, str, str, "date | None"]:
+) -> tuple[str, str, str, str, date | None]:
     """
     Convert a feed entry to (filename, markdown_content, url, title, published_date).
 
