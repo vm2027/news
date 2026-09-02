@@ -1,0 +1,37 @@
+name: DB Summary
+
+# Manual-only: an on-demand read of the Aiven Postgres articles table
+# (per-topic x origin counts) via query_summary.py, in place of a
+# persistent Grafana dashboard. Never scheduled, and never writes
+# anything -- no checkout token or push step needed.
+on:
+  workflow_dispatch:
+
+jobs:
+  query:
+    runs-on: ubuntu-latest
+    # workflow_dispatch can be run against any branch from the UI/API, and
+    # this job injects DATABASE_URL -- restricting to master means the
+    # secret only ever runs against reviewed, merged code, never an
+    # unmerged PR branch someone dispatched this against.
+    if: github.ref == 'refs/heads/master'
+
+    permissions:
+      contents: read        # Read-only: this job never writes anything
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Query per-topic/origin article counts
+        run: python query_summary.py
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
