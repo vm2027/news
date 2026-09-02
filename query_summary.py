@@ -69,6 +69,13 @@ def main() -> None:
             cur.execute("SELECT count(*) FROM articles")
             total = cur.fetchone()[0]
             print(f"\nTotal rows: {total}")
+    except Exception as exc:  # noqa: BLE001
+        # Same redaction as the connect-failure case: a permission error,
+        # missing-table error, etc. from psycopg can also carry connection
+        # details in its message, and an uncaught exception would print a
+        # full traceback (str(exc) included) straight into the Actions log.
+        print(f"Query failed: {type(exc).__name__}", file=sys.stderr)
+        sys.exit(1)
     finally:
         conn.close()
 
