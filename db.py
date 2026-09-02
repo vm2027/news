@@ -32,10 +32,31 @@ CREATE TABLE IF NOT EXISTS articles (
     origin TEXT NOT NULL,
     source TEXT NOT NULL,
     title TEXT NOT NULL,
-    url TEXT NOT NULL UNIQUE,
+    url TEXT NOT NULL,
     published_date DATE,
-    fetched_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (topic, origin, url)
 );
+"""
+
+# One-time migration for tables created before the uniqueness constraint
+# moved from a bare "url" to "(topic, origin, url)" -- the same article
+# URL can legitimately appear under more than one topic or origin, and a
+# global UNIQUE(url) silently dropped every such row via ON CONFLICT DO
+# NOTHING, undercounting the exact per-topic/origin numbers this table
+# exists to report. Split into two statements (not one multi-statement
+# string) since libpq/psycopg don't reliably support several statements
+# in a single execute(). Both are safe to run every call: DROP ... IF
+# EXISTS is a no-op once the old constraint is gone, and the DO block
+# swallows the "already exists" error once the new one is in place.
+_MIGRATE_DROP_OLD_UNIQUE = "ALTER TABLE articles DROP CONSTRAINT IF EXISTS articles_url_key;"
+_MIGRATE_ADD_COMPOSITE_UNIQUE = """
+DO $$
+BEGIN
+    ALTER TABLE articles ADD CONSTRAINT articles_topic_origin_url_key UNIQUE (topic, origin, url);
+EXCEPTION WHEN duplicate_object THEN
+    NULL;
+END $$;
 """
 
 
@@ -58,13 +79,19 @@ def get_connection() -> Any | None:
     try:
         conn = psycopg.connect(dsn, connect_timeout=10)
     except Exception as exc:  # noqa: BLE001
-        log.warning("Could not connect to DATABASE_URL: %s", exc)
+        # Deliberately log only the exception type, not str(exc): psycopg's
+        # connection-failure messages can include the DSN (host/user, and
+        # sometimes the password) verbatim, which would otherwise leak into
+        # GitHub Actions logs.
+        log.warning("Could not connect to DATABASE_URL: %s", type(exc).__name__)
         return None
     log.info("DB: connected to Postgres for article logging")
 
     try:
         with conn.cursor() as cur:
             cur.execute(_SCHEMA)
+            cur.execute(_MIGRATE_DROP_OLD_UNIQUE)
+            cur.execute(_MIGRATE_ADD_COMPOSITE_UNIQUE)
         conn.commit()
     except Exception as exc:  # noqa: BLE001
         log.warning("Could not ensure 'articles' table exists: %s", exc)
@@ -92,7 +119,7 @@ def record_article(
                 """
                 INSERT INTO articles (topic, origin, source, title, url, published_date)
                 VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (url) DO NOTHING
+                ON CONFLICT (topic, origin, url) DO NOTHING
                 RETURNING id
                 """,
                 (topic, origin, source, title, url, published_date),
