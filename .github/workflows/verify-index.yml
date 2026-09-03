@@ -1,12 +1,13 @@
 name: Verify Index
 
 on:
+  # No path filter: master's ruleset requires a status check named
+  # "verify" (this job's name) on every PR before merging. A path
+  # filter here means PRs that don't touch those files never trigger
+  # this job, so the required check stays permanently pending and the
+  # PR can never merge -- hit for real on a PR that only added an
+  # unrelated workflow + script. Cheap enough to just always run.
   pull_request:
-    paths:
-      - 'build_index.py'
-      - 'verify_index.py'
-      - 'obsidian/Obsedian_R/**'
-      - 'index.html'
 
 jobs:
   verify:
