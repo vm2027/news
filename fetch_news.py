@@ -114,8 +114,10 @@ class PerplexityFetchError(Exception):
 # Perplexity sometimes cites a social-media post that links to an article
 # instead of the article itself (e.g. a Facebook post URL whose slug is long
 # and specific enough to otherwise pass the article-shape check below). These
-# platforms are never themselves the source of a news article, so reject
-# them outright regardless of path shape.
+# platforms are overwhelmingly link-shares rather than the article's own
+# home, so reject them outright regardless of path shape -- this does mean
+# a story whose only/primary source really is a social-hosted post (e.g. a
+# native Facebook video) gets excluded too, which is an accepted tradeoff.
 BLOCKED_ARTICLE_DOMAINS = {
     "facebook.com", "twitter.com", "x.com", "instagram.com", "threads.net",
 }
@@ -139,7 +141,13 @@ def looks_like_article_url(url: str) -> bool:
         path = parsed.path.strip("/")
     except ValueError:
         return False
-    host = (parsed.hostname or "").lower()
+    # A URL missing a scheme/netloc (e.g. "facebook.com/..." with no
+    # "https://") parses with hostname=None, which would silently bypass
+    # BLOCKED_ARTICLE_DOMAINS and fall through to the path-shape heuristics
+    # below. Require a real http(s) scheme and hostname up front.
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        return False
+    host = parsed.hostname.lower()
     if any(host == d or host.endswith("." + d) for d in BLOCKED_ARTICLE_DOMAINS):
         return False
     if not path:
