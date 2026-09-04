@@ -137,6 +137,23 @@ def looks_like_article_url(url: str) -> bool:
     return len([w for w in last_segment_words if w]) >= 4
 
 
+def _is_retryable_perplexity_error(exc: Exception) -> bool:
+    """Whether a Perplexity request/parse failure is worth retrying.
+
+    A non-transient HTTP client error (bad request, invalid/expired API
+    key, etc.) will fail identically on retry -- retrying it just adds a
+    pointless delay and can hide a real auth/config problem behind a retry
+    that was never going to succeed. Network-level failures (timeouts,
+    connection errors), 5xx server errors, and 429 rate limits are
+    genuinely transient and worth one retry, as are response-shape/parse
+    issues (a truncated or malformed body can be a one-off glitch).
+    """
+    if isinstance(exc, requests.HTTPError):
+        status = exc.response.status_code if exc.response is not None else None
+        return status is None or status >= 500 or status == 429
+    return True
+
+
 def fetch_perplexity_articles(topic: str) -> list[dict]:
     """
     Fetch latest news for a topic via Perplexity's sonar API.
@@ -206,7 +223,7 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
                 raise TypeError(f"Perplexity response was valid JSON but not an array: {type(articles).__name__}")
             break
         except (json.JSONDecodeError, requests.RequestException, KeyError, IndexError, TypeError) as exc:
-            if attempt < PERPLEXITY_MAX_RETRIES:
+            if attempt < PERPLEXITY_MAX_RETRIES and _is_retryable_perplexity_error(exc):
                 log.warning(
                     "Perplexity request failed for '%s' (attempt %d/%d): %s -- retrying in %ds",
                     topic, attempt + 1, PERPLEXITY_MAX_RETRIES + 1, exc, PERPLEXITY_RETRY_DELAY_SECONDS,
@@ -690,6 +707,12 @@ def main() -> None:
     log.info("Output: %s", OBSIDIAN_DIR / topic)
 
     if perplexity_failed:
+        log.error(
+            "Exiting non-zero for '%s': RSS completed above, but Perplexity failed earlier "
+            "(see the 'Perplexity fetch failed' error above) -- this cycle is missing "
+            "Perplexity's contribution and the hourly retry window will try again.",
+            topic,
+        )
         sys.exit(1)
 
 
