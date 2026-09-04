@@ -193,12 +193,17 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
         try:
             resp = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload, timeout=30)
             resp.raise_for_status()
-            content = resp.json()["choices"][0]["message"]["content"].strip()
+            content = resp.json()["choices"][0]["message"]["content"]
+            if not isinstance(content, str):
+                raise TypeError(f"Perplexity response 'content' field was not a string: {type(content).__name__}")
+            content = content.strip()
             # Strip markdown code fences if present
             if content.startswith("```"):
                 content = re.sub(r"^```[a-z]*\n?", "", content)
                 content = re.sub(r"\n?```$", "", content)
             articles = json.loads(content)
+            if not isinstance(articles, list):
+                raise TypeError(f"Perplexity response was valid JSON but not an array: {type(articles).__name__}")
             break
         except (json.JSONDecodeError, requests.RequestException, KeyError, IndexError, TypeError) as exc:
             if attempt < PERPLEXITY_MAX_RETRIES:
