@@ -635,7 +635,13 @@ def titles_look_like_duplicates(a: str, b: str) -> bool:
     if difflib.SequenceMatcher(None, a_norm, b_norm).ratio() >= 0.82:
         return True
     shorter, longer = (a_norm, b_norm) if len(a_norm) <= len(b_norm) else (b_norm, a_norm)
-    return longer.startswith(shorter[: max(1, int(len(shorter) * 0.9))])
+    # Guard against short titles: 90% of a very short title can round down to
+    # 1-2 characters, so unrelated titles sharing only a leading word/letter
+    # would otherwise match. The prefix pattern this catches (a full title
+    # with a subtitle/clause appended) only makes sense for longer titles.
+    if len(shorter) < 20:
+        return False
+    return longer.startswith(shorter[: int(len(shorter) * 0.9)])
 
 
 # ---------------------------------------------------------------------------
