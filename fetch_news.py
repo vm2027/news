@@ -92,6 +92,14 @@ PERPLEXITY_SEARCH_RECENCY_FILTER = "week"
 # build_index.py/verify_index.py can use it without pulling in this file's
 # third-party dependencies.
 
+# One retry on a transient request failure (timeout, connection error, a
+# malformed/truncated response) before giving up -- confirmed worth having
+# on 2026-09-04, when a single Perplexity read-timeout aborted the whole
+# topic. A short, fixed delay rather than the hourly retry window, since
+# most transient failures clear in seconds, not an hour.
+PERPLEXITY_MAX_RETRIES = 1
+PERPLEXITY_RETRY_DELAY_SECONDS = 5
+
 PERPLEXITY_QUERIES: dict[str, str] = {
     "el-salvador": "El Salvador news politics economy security Bukele",
     "finance-insurance": "finance insurance industry news markets",
@@ -178,19 +186,29 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
         "max_tokens": 4500,
     }
 
-    try:
-        resp = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload, timeout=30)
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"].strip()
-        # Strip markdown code fences if present
-        if content.startswith("```"):
-            content = re.sub(r"^```[a-z]*\n?", "", content)
-            content = re.sub(r"\n?```$", "", content)
-        articles = json.loads(content)
-    except json.JSONDecodeError as exc:
-        raise PerplexityFetchError(f"Could not parse Perplexity JSON response: {exc}") from exc
-    except requests.RequestException as exc:
-        raise PerplexityFetchError(f"Perplexity API request failed: {exc}") from exc
+    articles = None
+    for attempt in range(PERPLEXITY_MAX_RETRIES + 1):
+        try:
+            resp = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload, timeout=30)
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"].strip()
+            # Strip markdown code fences if present
+            if content.startswith("```"):
+                content = re.sub(r"^```[a-z]*\n?", "", content)
+                content = re.sub(r"\n?```$", "", content)
+            articles = json.loads(content)
+            break
+        except (json.JSONDecodeError, requests.RequestException) as exc:
+            if attempt < PERPLEXITY_MAX_RETRIES:
+                log.warning(
+                    "Perplexity request failed for '%s' (attempt %d/%d): %s -- retrying in %ds",
+                    topic, attempt + 1, PERPLEXITY_MAX_RETRIES + 1, exc, PERPLEXITY_RETRY_DELAY_SECONDS,
+                )
+                time.sleep(PERPLEXITY_RETRY_DELAY_SECONDS)
+                continue
+            if isinstance(exc, json.JSONDecodeError):
+                raise PerplexityFetchError(f"Could not parse Perplexity JSON response: {exc}") from exc
+            raise PerplexityFetchError(f"Perplexity API request failed: {exc}") from exc
 
     if not articles:
         log.warning("Perplexity returned no articles for '%s' (no fresh news, not an error)", topic)
@@ -557,6 +575,7 @@ def main() -> None:
 
     total_saved = 0
     total_skipped = 0
+    perplexity_failed = False
 
     # Optional: log each saved article to Aiven Postgres for a topic x origin
     # dashboard. get_connection() returns None either way, but only silently
@@ -567,6 +586,17 @@ def main() -> None:
     # ---------------------------------------------------------------------------
     # Perplexity path — replaces RSS for configured topics, or supplements it
     # for topics listed in PERPLEXITY_SUPPLEMENTS_RSS (both sources run).
+    #
+    # A Perplexity failure only aborts the topic immediately when there's no
+    # RSS fallback to fall back on. For a PERPLEXITY_SUPPLEMENTS_RSS topic,
+    # RSS is a completely independent source -- letting a Perplexity-side
+    # error block it too meant a single Perplexity API hiccup could take out
+    # healthy, unrelated RSS feeds along with it (confirmed 2026-09-04: a
+    # Perplexity read-timeout aborted finance-insurance entirely before its 6
+    # RSS feeds ever ran). Fall through to RSS in that case, but still exit
+    # non-zero at the end so the failure stays visible (the workflow shows
+    # red, the hourly retry window gets another shot at Perplexity) rather
+    # than silently settling for RSS-only.
     # ---------------------------------------------------------------------------
     if topic in PERPLEXITY_TOPICS:
         log.info("Using Perplexity API for topic '%s'", topic)
@@ -574,7 +604,11 @@ def main() -> None:
             articles = fetch_perplexity_articles(topic)
         except PerplexityFetchError as exc:
             log.error("Perplexity fetch failed for '%s': %s", topic, exc)
-            sys.exit(1)
+            if topic not in PERPLEXITY_SUPPLEMENTS_RSS:
+                db.close(db_conn)
+                sys.exit(1)
+            articles = []
+            perplexity_failed = True
         for article in articles:
             try:
                 filename, content, article_url, title, published_date = perplexity_article_to_markdown(article, topic)
@@ -645,6 +679,9 @@ def main() -> None:
 
     log.info("Done. %d articles saved, %d errors.", total_saved, total_skipped)
     log.info("Output: %s", OBSIDIAN_DIR / topic)
+
+    if perplexity_failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
