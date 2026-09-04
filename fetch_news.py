@@ -139,8 +139,8 @@ def looks_like_article_url(url: str) -> bool:
         path = parsed.path.strip("/")
     except ValueError:
         return False
-    host = (parsed.hostname or "").lower().removeprefix("www.").removeprefix("m.")
-    if host in BLOCKED_ARTICLE_DOMAINS:
+    host = (parsed.hostname or "").lower()
+    if any(host == d or host.endswith("." + d) for d in BLOCKED_ARTICLE_DOMAINS):
         return False
     if not path:
         return False
