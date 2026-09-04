@@ -630,8 +630,10 @@ def titles_look_like_duplicates(a: str, b: str) -> bool:
     """Whether two article titles likely describe the same underlying story.
 
     Two signals, either one is enough:
-    - overall similarity ratio >= 0.82 (catches a single word changed, e.g.
-      "...Some Important Conditions" vs "...Some Important Context")
+    - overall similarity ratio >= 0.80 (catches a phrase changed partway
+      through, e.g. "...as Metals, Financials Lift Markets" vs "...as
+      Metals, Banks Lead Rebound" -- two HDFCSky recaps of the same trading
+      session, ratio 0.806)
     - one title is (almost) a verbatim prefix of the other (catches a
       syndicated version that appends a subtitle/clause after a dash, e.g.
       "El Salvador Sticks With 'One Bitcoin a Day' Purchase" vs the same
@@ -640,7 +642,15 @@ def titles_look_like_duplicates(a: str, b: str) -> bool:
     a_norm, b_norm = _normalize_title_for_dedup(a), _normalize_title_for_dedup(b)
     if not a_norm or not b_norm:
         return False
-    if difflib.SequenceMatcher(None, a_norm, b_norm).ratio() >= 0.82:
+    # difflib.SequenceMatcher's ratio isn't guaranteed symmetric (it can
+    # differ depending on which string is passed first), which would make
+    # this check's result depend on save order rather than the titles
+    # themselves. Take the higher of both directions.
+    ratio = max(
+        difflib.SequenceMatcher(None, a_norm, b_norm).ratio(),
+        difflib.SequenceMatcher(None, b_norm, a_norm).ratio(),
+    )
+    if ratio >= 0.80:
         return True
     shorter, longer = (a_norm, b_norm) if len(a_norm) <= len(b_norm) else (b_norm, a_norm)
     # Guard against short titles: 90% of a very short title can round down to
