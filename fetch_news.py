@@ -144,9 +144,11 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
     filtered to articles within PERPLEXITY_MAX_ARTICLE_AGE_DAYS.
 
     Raises PerplexityFetchError if the API call itself fails (missing key,
-    network/HTTP error, or an unparsable response) so callers can treat it
-    as a hard failure. An empty result set is not an error - it means no
-    fresh articles were found - and returns an empty list instead.
+    network/HTTP error, an unparsable response, or one with an unexpected
+    shape -- e.g. a missing/empty "choices" list) so callers can treat it
+    as a hard failure. Retries once internally on any of those before
+    raising. An empty result set is not an error - it means no fresh
+    articles were found - and returns an empty list instead.
     """
     api_key = os.environ.get("PERPLEXITY_API_KEY", "")
     if not api_key:
@@ -198,7 +200,7 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
                 content = re.sub(r"\n?```$", "", content)
             articles = json.loads(content)
             break
-        except (json.JSONDecodeError, requests.RequestException) as exc:
+        except (json.JSONDecodeError, requests.RequestException, KeyError, IndexError, TypeError) as exc:
             if attempt < PERPLEXITY_MAX_RETRIES:
                 log.warning(
                     "Perplexity request failed for '%s' (attempt %d/%d): %s -- retrying in %ds",
@@ -208,7 +210,9 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
                 continue
             if isinstance(exc, json.JSONDecodeError):
                 raise PerplexityFetchError(f"Could not parse Perplexity JSON response: {exc}") from exc
-            raise PerplexityFetchError(f"Perplexity API request failed: {exc}") from exc
+            if isinstance(exc, requests.RequestException):
+                raise PerplexityFetchError(f"Perplexity API request failed: {exc}") from exc
+            raise PerplexityFetchError(f"Unexpected Perplexity response shape: {exc}") from exc
 
     if not articles:
         log.warning("Perplexity returned no articles for '%s' (no fresh news, not an error)", topic)
