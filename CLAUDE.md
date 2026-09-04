@@ -88,6 +88,36 @@ and will need to be regenerated and the secret updated when it lapses —
 if the workflow starts failing at "Commit and push new articles" with a
 403/protected-branch error, check that first.
 
+## Step gating in fetch-news.yml matters when exit-code semantics change
+
+`run_all.py` can exit non-zero for reasons beyond "nothing was fetched"
+-- see `fetch_news.py`'s Perplexity/RSS failure isolation (PR #31): a
+Perplexity-only failure for `finance-insurance` now falls through to RSS
+and still succeeds at saving articles, but the script still exits 1 at
+the end so the failure stays visible and the hourly retry window gets
+another shot at Perplexity specifically.
+
+That only works because the three steps after "Fetch all news topics" in
+`fetch-news.yml` (`build_index.py`, `verify_index.py`, commit+push) are
+gated with `if: !cancelled()`, each chained to the *immediately
+preceding* step's own outcome (`steps.<id>.outcome`) rather than the
+default `success()` (which checks every step in the job so far, not just
+the last one). Without that chaining, GitHub Actions stops the job at
+the first failing step and the later steps never run at all -- confirmed
+for real on PR #31, where the whole point of the fix (RSS content still
+gets published on a Perplexity failure) would have silently never
+happened in production. Extensive local mocked testing didn't catch
+this, since it only exercised `fetch_news.py`'s own logic in isolation;
+Copilot's 4th review pass on the PR is what caught it.
+
+Any future change to what causes `fetch_news.py`/`run_all.py` to exit
+non-zero needs to be checked against these step conditions -- correct
+Python logic can still be silently defeated by the workflow's step
+gating around it. More generally: a fix to error-handling/control-flow
+isn't verified by testing the changed function in isolation; trace it
+through its full execution path (here, the CI workflow) to confirm the
+new behavior actually reaches production.
+
 ## Analytics
 
 `build_index.py` embeds a Plausible Analytics script tag
