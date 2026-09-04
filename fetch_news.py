@@ -17,6 +17,7 @@ if sys.version_info < (3, 10):
     )
 
 import argparse
+import difflib
 import hashlib
 import logging
 import re
@@ -110,6 +111,16 @@ class PerplexityFetchError(Exception):
     """Raised when the Perplexity API call itself fails (auth, network, bad JSON)."""
 
 
+# Perplexity sometimes cites a social-media post that links to an article
+# instead of the article itself (e.g. a Facebook post URL whose slug is long
+# and specific enough to otherwise pass the article-shape check below). These
+# platforms are never themselves the source of a news article, so reject
+# them outright regardless of path shape.
+BLOCKED_ARTICLE_DOMAINS = {
+    "facebook.com", "twitter.com", "x.com", "instagram.com", "threads.net",
+}
+
+
 def looks_like_article_url(url: str) -> bool:
     """
     Heuristic check that a URL points to a specific article rather than a
@@ -118,13 +129,18 @@ def looks_like_article_url(url: str) -> bool:
     dated articles, regardless of prompt instructions - this is a
     code-level backstop rather than relying on the model alone.
 
-    A URL counts as an article if its path contains a year (a dated
-    article), or its final path segment is a long, specific slug rather
-    than a short generic category name.
+    A URL counts as an article if its host isn't a known social-media
+    platform (see BLOCKED_ARTICLE_DOMAINS), and its path contains a year (a
+    dated article) or its final path segment is a long, specific slug
+    rather than a short generic category name.
     """
     try:
-        path = urlparse(url).path.strip("/")
+        parsed = urlparse(url)
+        path = parsed.path.strip("/")
     except ValueError:
+        return False
+    host = (parsed.hostname or "").lower().removeprefix("www.").removeprefix("m.")
+    if host in BLOCKED_ARTICLE_DOMAINS:
         return False
     if not path:
         return False
@@ -575,6 +591,54 @@ def save_article(topic: str, filename: str, content: str) -> Path:
 
 
 # ---------------------------------------------------------------------------
+# Cross-source duplicate-title detection
+#
+# Exact-URL dedup (article_exists()) misses the same underlying story
+# published under two different URLs: the same wire piece syndicated to a
+# second outlet (a Perplexity result and a re-publication carrying a lightly
+# edited headline), or the same outlet's own story appearing under two
+# article IDs in two RSS feed sections (seen for real in finance-insurance:
+# Insurance Journal's national and international feeds both carrying
+# "Guy Carpenter Rebranded as Marsh Re" under different URLs, same day).
+#
+# Scoped deliberately to titles saved *this run* (both the Perplexity loop
+# and the RSS loop below share one list), not the full historical archive:
+# several real recurring templated headlines ("Latest Oil Market News and
+# Analysis for Aug. 19" vs "... for Aug. 21") are legitimately different
+# articles that only share a title template across different days, and
+# comparing across the whole archive flagged those as false positives during
+# testing. Comparing only within a single run's save batch avoids that,
+# since two runs' worth of a templated column are never in the same batch.
+# ---------------------------------------------------------------------------
+
+def _normalize_title_for_dedup(title: str) -> str:
+    """Lowercase, strip punctuation/quotes, collapse whitespace, so titles
+    that differ only in quoting or punctuation still compare as equal."""
+    normalized = re.sub(r"[^\w\s]", "", title.lower())
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def titles_look_like_duplicates(a: str, b: str) -> bool:
+    """Whether two article titles likely describe the same underlying story.
+
+    Two signals, either one is enough:
+    - overall similarity ratio >= 0.82 (catches a single word changed, e.g.
+      "...Some Important Conditions" vs "...Some Important Context")
+    - one title is (almost) a verbatim prefix of the other (catches a
+      syndicated version that appends a subtitle/clause after a dash, e.g.
+      "El Salvador Sticks With 'One Bitcoin a Day' Purchase" vs the same
+      title plus " – Has Nayib Bukele-Led Nation's Crypto Bet Paid Off?")
+    """
+    a_norm, b_norm = _normalize_title_for_dedup(a), _normalize_title_for_dedup(b)
+    if not a_norm or not b_norm:
+        return False
+    if difflib.SequenceMatcher(None, a_norm, b_norm).ratio() >= 0.82:
+        return True
+    shorter, longer = (a_norm, b_norm) if len(a_norm) <= len(b_norm) else (b_norm, a_norm)
+    return longer.startswith(shorter[: max(1, int(len(shorter) * 0.9))])
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -606,6 +670,10 @@ def main() -> None:
     total_saved = 0
     total_skipped = 0
     perplexity_failed = False
+    # Shared across the Perplexity loop and the RSS loop below -- see
+    # "Cross-source duplicate-title detection" above for why this needs to
+    # span both sources rather than living inside just one of them.
+    saved_titles_this_run: list[str] = []
 
     # Optional: log each saved article to Aiven Postgres for a topic x origin
     # dashboard. get_connection() returns None either way, but only silently
@@ -646,6 +714,10 @@ def main() -> None:
                     log.info("  → Skipped (already saved): %s", article_url)
                     total_skipped += 1
                     continue
+                if title and any(titles_look_like_duplicates(title, t) for t in saved_titles_this_run):
+                    log.info("  → Skipped (looks like a duplicate of an already-saved article this run): %s", title)
+                    total_skipped += 1
+                    continue
                 out_path = save_article(topic, filename, content)
                 db.record_article(
                     db_conn, topic, "perplexity", str(article.get("source", "Perplexity")),
@@ -653,6 +725,8 @@ def main() -> None:
                 )
                 log.info("  ✓ %s", out_path.name)
                 total_saved += 1
+                if title:
+                    saved_titles_this_run.append(title)
             except Exception as exc:
                 log.error("  ✗ Error processing Perplexity article: %s", exc)
                 total_skipped += 1
@@ -695,10 +769,16 @@ def main() -> None:
                     log.info("  → Skipped (already saved): %s", article_url)
                     total_skipped += 1
                     continue
+                if title and any(titles_look_like_duplicates(title, t) for t in saved_titles_this_run):
+                    log.info("  → Skipped (looks like a duplicate of an already-saved article this run): %s", title)
+                    total_skipped += 1
+                    continue
                 out_path = save_article(topic, filename, content)
                 db.record_article(db_conn, topic, "rss", source_name, title, article_url, published_date)
                 log.info("  ✓ %s", out_path.name)
                 total_saved += 1
+                if title:
+                    saved_titles_this_run.append(title)
             except Exception as exc:  # noqa: BLE001
                 log.error("  ✗ Error processing entry: %s", exc)
                 total_skipped += 1
