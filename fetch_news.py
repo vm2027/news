@@ -163,8 +163,12 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
     Raises PerplexityFetchError if the API call itself fails (missing key,
     network/HTTP error, an unparsable response, or one with an unexpected
     shape -- e.g. a missing/empty "choices" list) so callers can treat it
-    as a hard failure. Retries once internally on any of those before
-    raising. An empty result set is not an error - it means no fresh
+    as a hard failure. Retries once internally on transient failures
+    (timeouts, connection errors, 5xx, 429, and response-parsing/shape
+    issues) before raising -- see _is_retryable_perplexity_error(). A
+    non-transient HTTP client error (e.g. 401 on a bad/expired API key)
+    raises immediately without retrying, since it would fail identically
+    on retry. An empty result set is not an error - it means no fresh
     articles were found - and returns an empty list instead.
     """
     api_key = os.environ.get("PERPLEXITY_API_KEY", "")

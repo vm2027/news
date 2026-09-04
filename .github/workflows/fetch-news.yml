@@ -58,13 +58,34 @@ jobs:
           # -- the fetch and file output are unaffected either way.
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
+      # run_all.py now exits non-zero when Perplexity fails for a topic
+      # that still fetched RSS successfully (see fetch_news.py),
+      # specifically so RSS content still gets published on a
+      # Perplexity-only failure. Without these steps still running after
+      # that, the job would stop at the failed "Fetch all news topics"
+      # step and never reach the commit -- RSS articles would be written
+      # to the runner's disk and then simply discarded, achieving nothing.
+      # !cancelled() (rather than the default success()) lets each step
+      # still attempt to run after that earlier failure, but each is
+      # explicitly gated on the *immediately preceding* step's own
+      # outcome (steps.<id>.outcome) rather than the default success(),
+      # which checks every step in the job -- so verify_index.py failing
+      # for a real, unrelated reason still correctly blocks the commit,
+      # exactly as before this change. The job's overall status still
+      # reports failure (from the "Fetch all news topics" step), so none
+      # of this hides the Perplexity-side problem.
       - name: Update index.html with latest articles
+        if: ${{ !cancelled() }}
+        id: build_index
         run: python build_index.py
 
       - name: Verify index.html reflects source data
+        if: ${{ !cancelled() && steps.build_index.outcome == 'success' }}
+        id: verify_index
         run: python verify_index.py
 
       - name: Commit and push new articles
+        if: ${{ !cancelled() && steps.verify_index.outcome == 'success' }}
         run: |
           git config user.name "Vic"
           git config user.email "notebooklm14@gmail.com"
