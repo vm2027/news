@@ -92,6 +92,14 @@ PERPLEXITY_SEARCH_RECENCY_FILTER = "week"
 # build_index.py/verify_index.py can use it without pulling in this file's
 # third-party dependencies.
 
+# One retry on a transient request failure (timeout, connection error, a
+# malformed/truncated response) before giving up -- confirmed worth having
+# on 2026-09-04, when a single Perplexity read-timeout aborted the whole
+# topic. A short, fixed delay rather than the hourly retry window, since
+# most transient failures clear in seconds, not an hour.
+PERPLEXITY_MAX_RETRIES = 1
+PERPLEXITY_RETRY_DELAY_SECONDS = 5
+
 PERPLEXITY_QUERIES: dict[str, str] = {
     "el-salvador": "El Salvador news politics economy security Bukele",
     "finance-insurance": "finance insurance industry news markets",
@@ -129,6 +137,23 @@ def looks_like_article_url(url: str) -> bool:
     return len([w for w in last_segment_words if w]) >= 4
 
 
+def _is_retryable_perplexity_error(exc: Exception) -> bool:
+    """Whether a Perplexity request/parse failure is worth retrying.
+
+    A non-transient HTTP client error (bad request, invalid/expired API
+    key, etc.) will fail identically on retry -- retrying it just adds a
+    pointless delay and can hide a real auth/config problem behind a retry
+    that was never going to succeed. Network-level failures (timeouts,
+    connection errors), 5xx server errors, and 429 rate limits are
+    genuinely transient and worth one retry, as are response-shape/parse
+    issues (a truncated or malformed body can be a one-off glitch).
+    """
+    if isinstance(exc, requests.HTTPError):
+        status = exc.response.status_code if exc.response is not None else None
+        return status is None or status >= 500 or status == 429
+    return True
+
+
 def fetch_perplexity_articles(topic: str) -> list[dict]:
     """
     Fetch latest news for a topic via Perplexity's sonar API.
@@ -136,9 +161,15 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
     filtered to articles within PERPLEXITY_MAX_ARTICLE_AGE_DAYS.
 
     Raises PerplexityFetchError if the API call itself fails (missing key,
-    network/HTTP error, or an unparsable response) so callers can treat it
-    as a hard failure. An empty result set is not an error - it means no
-    fresh articles were found - and returns an empty list instead.
+    network/HTTP error, an unparsable response, or one with an unexpected
+    shape -- e.g. a missing/empty "choices" list) so callers can treat it
+    as a hard failure. Retries once internally on transient failures
+    (timeouts, connection errors, 5xx, 429, and response-parsing/shape
+    issues) before raising -- see _is_retryable_perplexity_error(). A
+    non-transient HTTP client error (e.g. 401 on a bad/expired API key)
+    raises immediately without retrying, since it would fail identically
+    on retry. An empty result set is not an error - it means no fresh
+    articles were found - and returns an empty list instead.
     """
     api_key = os.environ.get("PERPLEXITY_API_KEY", "")
     if not api_key:
@@ -178,19 +209,36 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
         "max_tokens": 4500,
     }
 
-    try:
-        resp = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload, timeout=30)
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"].strip()
-        # Strip markdown code fences if present
-        if content.startswith("```"):
-            content = re.sub(r"^```[a-z]*\n?", "", content)
-            content = re.sub(r"\n?```$", "", content)
-        articles = json.loads(content)
-    except json.JSONDecodeError as exc:
-        raise PerplexityFetchError(f"Could not parse Perplexity JSON response: {exc}") from exc
-    except requests.RequestException as exc:
-        raise PerplexityFetchError(f"Perplexity API request failed: {exc}") from exc
+    articles = None
+    for attempt in range(PERPLEXITY_MAX_RETRIES + 1):
+        try:
+            resp = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload, timeout=30)
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            if not isinstance(content, str):
+                raise TypeError(f"Perplexity response 'content' field was not a string: {type(content).__name__}")
+            content = content.strip()
+            # Strip markdown code fences if present
+            if content.startswith("```"):
+                content = re.sub(r"^```[a-z]*\n?", "", content)
+                content = re.sub(r"\n?```$", "", content)
+            articles = json.loads(content)
+            if not isinstance(articles, list):
+                raise TypeError(f"Perplexity response was valid JSON but not an array: {type(articles).__name__}")
+            break
+        except (json.JSONDecodeError, requests.RequestException, KeyError, IndexError, TypeError) as exc:
+            if attempt < PERPLEXITY_MAX_RETRIES and _is_retryable_perplexity_error(exc):
+                log.warning(
+                    "Perplexity request failed for '%s' (attempt %d/%d): %s -- retrying in %ds",
+                    topic, attempt + 1, PERPLEXITY_MAX_RETRIES + 1, exc, PERPLEXITY_RETRY_DELAY_SECONDS,
+                )
+                time.sleep(PERPLEXITY_RETRY_DELAY_SECONDS)
+                continue
+            if isinstance(exc, json.JSONDecodeError):
+                raise PerplexityFetchError(f"Could not parse Perplexity JSON response: {exc}") from exc
+            if isinstance(exc, requests.RequestException):
+                raise PerplexityFetchError(f"Perplexity API request failed: {exc}") from exc
+            raise PerplexityFetchError(f"Unexpected Perplexity response shape: {exc}") from exc
 
     if not articles:
         log.warning("Perplexity returned no articles for '%s' (no fresh news, not an error)", topic)
@@ -557,6 +605,7 @@ def main() -> None:
 
     total_saved = 0
     total_skipped = 0
+    perplexity_failed = False
 
     # Optional: log each saved article to Aiven Postgres for a topic x origin
     # dashboard. get_connection() returns None either way, but only silently
@@ -567,6 +616,17 @@ def main() -> None:
     # ---------------------------------------------------------------------------
     # Perplexity path — replaces RSS for configured topics, or supplements it
     # for topics listed in PERPLEXITY_SUPPLEMENTS_RSS (both sources run).
+    #
+    # A Perplexity failure only aborts the topic immediately when there's no
+    # RSS fallback to fall back on. For a PERPLEXITY_SUPPLEMENTS_RSS topic,
+    # RSS is a completely independent source -- letting a Perplexity-side
+    # error block it too meant a single Perplexity API hiccup could take out
+    # healthy, unrelated RSS feeds along with it (confirmed 2026-09-04: a
+    # Perplexity read-timeout aborted finance-insurance entirely before its 6
+    # RSS feeds ever ran). Fall through to RSS in that case, but still exit
+    # non-zero at the end so the failure stays visible (the workflow shows
+    # red, the hourly retry window gets another shot at Perplexity) rather
+    # than silently settling for RSS-only.
     # ---------------------------------------------------------------------------
     if topic in PERPLEXITY_TOPICS:
         log.info("Using Perplexity API for topic '%s'", topic)
@@ -574,7 +634,11 @@ def main() -> None:
             articles = fetch_perplexity_articles(topic)
         except PerplexityFetchError as exc:
             log.error("Perplexity fetch failed for '%s': %s", topic, exc)
-            sys.exit(1)
+            if topic not in PERPLEXITY_SUPPLEMENTS_RSS:
+                db.close(db_conn)
+                sys.exit(1)
+            articles = []
+            perplexity_failed = True
         for article in articles:
             try:
                 filename, content, article_url, title, published_date = perplexity_article_to_markdown(article, topic)
@@ -645,6 +709,15 @@ def main() -> None:
 
     log.info("Done. %d articles saved, %d errors.", total_saved, total_skipped)
     log.info("Output: %s", OBSIDIAN_DIR / topic)
+
+    if perplexity_failed:
+        log.error(
+            "Exiting non-zero for '%s': RSS completed above, but Perplexity failed earlier "
+            "(see the 'Perplexity fetch failed' error above) -- this cycle is missing "
+            "Perplexity's contribution and the hourly retry window will try again.",
+            topic,
+        )
+        sys.exit(1)
 
 
 if __name__ == "__main__":
