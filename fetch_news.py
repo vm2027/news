@@ -672,8 +672,13 @@ def main() -> None:
     perplexity_failed = False
     # Shared across the Perplexity loop and the RSS loop below -- see
     # "Cross-source duplicate-title detection" above for why this needs to
-    # span both sources rather than living inside just one of them.
-    saved_titles_this_run: list[str] = []
+    # span both sources rather than living inside just one of them. Each
+    # entry is (published_date, title); a run's RSS pass isn't limited to
+    # today (feed.entries[:args.max] can include older entries), so
+    # comparisons are scoped to matching published_date to avoid flagging
+    # e.g. a recurring template headline published on two different days as
+    # a same-run duplicate. An unknown published_date is never compared.
+    saved_titles_this_run: list[tuple[date, str]] = []
 
     # Optional: log each saved article to Aiven Postgres for a topic x origin
     # dashboard. get_connection() returns None either way, but only silently
@@ -714,7 +719,11 @@ def main() -> None:
                     log.info("  → Skipped (already saved): %s", article_url)
                     total_skipped += 1
                     continue
-                if title and any(titles_look_like_duplicates(title, t) for t in saved_titles_this_run):
+                if title and published_date and any(
+                    titles_look_like_duplicates(title, t)
+                    for d, t in saved_titles_this_run
+                    if d == published_date
+                ):
                     log.info("  → Skipped (looks like a duplicate of an already-saved article this run): %s", title)
                     total_skipped += 1
                     continue
@@ -725,8 +734,8 @@ def main() -> None:
                 )
                 log.info("  ✓ %s", out_path.name)
                 total_saved += 1
-                if title:
-                    saved_titles_this_run.append(title)
+                if title and published_date:
+                    saved_titles_this_run.append((published_date, title))
             except Exception as exc:
                 log.error("  ✗ Error processing Perplexity article: %s", exc)
                 total_skipped += 1
@@ -769,7 +778,11 @@ def main() -> None:
                     log.info("  → Skipped (already saved): %s", article_url)
                     total_skipped += 1
                     continue
-                if title and any(titles_look_like_duplicates(title, t) for t in saved_titles_this_run):
+                if title and published_date and any(
+                    titles_look_like_duplicates(title, t)
+                    for d, t in saved_titles_this_run
+                    if d == published_date
+                ):
                     log.info("  → Skipped (looks like a duplicate of an already-saved article this run): %s", title)
                     total_skipped += 1
                     continue
@@ -777,8 +790,8 @@ def main() -> None:
                 db.record_article(db_conn, topic, "rss", source_name, title, article_url, published_date)
                 log.info("  ✓ %s", out_path.name)
                 total_saved += 1
-                if title:
-                    saved_titles_this_run.append(title)
+                if title and published_date:
+                    saved_titles_this_run.append((published_date, title))
             except Exception as exc:  # noqa: BLE001
                 log.error("  ✗ Error processing entry: %s", exc)
                 total_skipped += 1
