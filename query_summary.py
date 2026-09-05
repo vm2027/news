@@ -1,49 +1,35 @@
 #!/usr/bin/env python3
 """
-query_summary.py — TEMPORARY diagnostic build.
+query_summary.py — read-only summary of the Aiven Postgres articles
+table (see db.py): article counts per topic x origin, for on-demand
+checks without needing Grafana or any other persistent dashboard.
 
-Finds "phantom" rows in the Postgres articles table: rows logged by a
-past fetch (topic, origin, url) that no longer have a matching markdown
-file in obsidian/Obsedian_R/<topic>/ -- i.e. articles that were fetched,
-saved, logged to the DB, and later removed from the file archive by a
-duplicate-cleanup PR. db.record_article() logs at save time and is never
-updated or deleted when a file is later removed, so the DB total only
-ever grows, while the file-based count reflects only what currently
-exists -- this script quantifies exactly how much of that gap is
-explained by known cleanups vs. something else.
+Connects directly with psycopg rather than going through
+db.get_connection() -- that helper also runs the CREATE TABLE/ALTER
+TABLE schema-ensure and migration statements, which would make this
+"read-only" script perform writes (and fail outright against a
+read-only DB role).
 
-This is a one-off investigation, not permanent tooling; the original
-read-only summary script will be restored after this runs.
+DATABASE_URL only exists as a GitHub Actions secret, so this is meant
+to run via the "DB Summary" workflow (workflow_dispatch only, never
+scheduled) rather than from a local shell.
 """
 
 import os
 import sys
 from datetime import timezone
-from pathlib import Path
-
-TOPICS = ["el-salvador", "finance-insurance"]
 
 
 def _utc(dt) -> str:
+    """Format a timestamptz value as an explicit UTC string.
+
+    psycopg returns timestamptz columns as timezone-aware datetimes in
+    the session's timezone, not necessarily UTC -- astimezone() forces
+    the conversion so the "(UTC)" header is actually accurate.
+    """
     if dt is None:
         return ""
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-
-
-def load_local_urls() -> dict[str, set[str]]:
-    """topic -> set of article URLs currently present in the file archive."""
-    urls: dict[str, set[str]] = {}
-    for topic in TOPICS:
-        s = set()
-        base = Path("obsidian/Obsedian_R") / topic
-        for f in base.glob("*.md"):
-            text = f.read_text(encoding="utf-8")
-            for line in text.splitlines():
-                if line.startswith("url:"):
-                    s.add(line.split(":", 1)[1].strip())
-                    break
-        urls[topic] = s
-    return urls
 
 
 def main() -> None:
@@ -57,32 +43,38 @@ def main() -> None:
     try:
         conn = psycopg.connect(dsn, connect_timeout=10)
     except Exception as exc:  # noqa: BLE001
+        # Only the exception type, not str(exc): psycopg connection-failure
+        # messages can include the DSN (host/user, sometimes the password)
+        # verbatim, which would otherwise leak into the Actions log.
         print(f"Could not connect: {type(exc).__name__}", file=sys.stderr)
         sys.exit(1)
 
     try:
-        local_urls = load_local_urls()
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT topic, origin, title, url, published_date, fetched_at
+                SELECT topic, origin, count(*) AS n,
+                       min(fetched_at) AS first_seen, max(fetched_at) AS last_seen
                 FROM articles
-                WHERE fetched_at >= '2026-09-02'
-                ORDER BY topic, origin, fetched_at
+                GROUP BY topic, origin
+                ORDER BY topic, origin
                 """
             )
             rows = cur.fetchall()
 
-        print(f"Total DB rows since 2026-09-02: {len(rows)}")
+            print(f"{'topic':<20}{'origin':<12}{'count':>7}  {'first_fetched (UTC)':<24}{'last_fetched (UTC)'}")
+            for topic, origin, n, first_seen, last_seen in rows:
+                print(f"{topic:<20}{origin:<12}{n:>7}  {_utc(first_seen):<24}{_utc(last_seen)}")
 
-        phantom = [r for r in rows if r[3] not in local_urls.get(r[0], set())]
-        print(f"Phantom rows (in DB, no matching file): {len(phantom)}\n")
-        for topic, origin, title, url, pub, fetched in phantom:
-            print(f"  [{topic}/{origin}] published={pub} fetched={_utc(fetched)}")
-            print(f"    title: {title}")
-            print(f"    url:   {url}")
+            cur.execute("SELECT count(*) FROM articles")
+            total = cur.fetchone()[0]
+            print(f"\nTotal rows: {total}")
     except Exception as exc:  # noqa: BLE001
-        print(f"Query failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        # Same redaction as the connect-failure case: a permission error,
+        # missing-table error, etc. from psycopg can also carry connection
+        # details in its message, and an uncaught exception would print a
+        # full traceback (str(exc) included) straight into the Actions log.
+        print(f"Query failed: {type(exc).__name__}", file=sys.stderr)
         sys.exit(1)
     finally:
         conn.close()
