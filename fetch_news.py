@@ -101,6 +101,13 @@ PERPLEXITY_SEARCH_RECENCY_FILTER = "week"
 PERPLEXITY_MAX_RETRIES = 1
 PERPLEXITY_RETRY_DELAY_SECONDS = 5
 
+# Observed response times for this prompt/model routinely land at 29-35s
+# (confirmed against actual run logs on 2026-09-08), right at the edge of a
+# 30s timeout -- that margin, not a real outage, caused 3 of 4 Perplexity
+# calls to time out that day. 60s gives real slow responses room to land
+# without waiting on a retry.
+PERPLEXITY_REQUEST_TIMEOUT_SECONDS = 60
+
 PERPLEXITY_QUERIES: dict[str, str] = {
     "el-salvador": "El Salvador news politics economy security Bukele",
     "finance-insurance": "finance insurance industry news markets",
@@ -236,7 +243,9 @@ def fetch_perplexity_articles(topic: str) -> list[dict]:
     articles = None
     for attempt in range(PERPLEXITY_MAX_RETRIES + 1):
         try:
-            resp = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload, timeout=30)
+            resp = requests.post(
+                PERPLEXITY_API_URL, headers=headers, json=payload, timeout=PERPLEXITY_REQUEST_TIMEOUT_SECONDS
+            )
             resp.raise_for_status()
             content = resp.json()["choices"][0]["message"]["content"]
             if not isinstance(content, str):
