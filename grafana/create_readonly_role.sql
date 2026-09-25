@@ -15,12 +15,19 @@ BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'grafana_ro') THEN
         CREATE ROLE grafana_ro LOGIN;
     END IF;
+    -- CONNECT and schema USAGE are granted to PUBLIC by default, so these
+    -- two are belt and braces -- and the Aiven admin user may not own the
+    -- database/schema, so a missing grant option must not abort the setup.
     -- current_database() rather than a hard-coded name, since the
     -- database name is whatever the Aiven service URI points at.
-    EXECUTE format('GRANT CONNECT ON DATABASE %I TO grafana_ro', current_database());
+    BEGIN
+        EXECUTE format('GRANT CONNECT ON DATABASE %I TO grafana_ro', current_database());
+        GRANT USAGE ON SCHEMA public TO grafana_ro;
+    EXCEPTION WHEN insufficient_privilege THEN
+        RAISE NOTICE 'skipped CONNECT/USAGE grants (PUBLIC defaults apply)';
+    END;
 END $$;
 
-GRANT USAGE ON SCHEMA public TO grafana_ro;
 GRANT SELECT ON articles TO grafana_ro;
 
 -- Belt and braces: even a query Grafana sends can't write, can't run away,

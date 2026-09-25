@@ -11,13 +11,24 @@ config you apply by hand in Grafana Cloud.
 | File | What it is |
 |---|---|
 | `create_readonly_role.sql` | One-time: creates a `grafana_ro` Postgres login that can only `SELECT` from `articles` |
+| `setup_readonly_role.py` | Runs that SQL, sets the password, and verifies the login, from a GitHub Actions runner (no local `psql` needed) |
 | `dashboard.json` | Import into Grafana: "News pipeline health" |
 
 ## 1. Create the read-only database user (once)
 
 Grafana Cloud stores whatever credentials you give it, so don't give it the
-admin login from `DATABASE_URL`. You need `psql` locally and the **Service
-URI** from the Aiven console (service overview page):
+admin login from `DATABASE_URL`.
+
+**Without a local `psql` (how it was actually done):** add a repository
+secret `GRAFANA_RO_PASSWORD` (16+ ASCII characters, also saved in your
+password manager), then run the one-off
+`.github/workflows/grafana-role-setup.yml`. It uses the existing
+`DATABASE_URL` secret, sends the password only as a SCRAM hash, and
+verifies the new login: it can read per-topic/origin counts and has no
+write privileges. Delete the workflow once it has succeeded.
+
+**With `psql`:** use the **Service URI** from the Aiven console (service
+overview page):
 
 ```sh
 psql "<Aiven service URI>" -f grafana/create_readonly_role.sql
