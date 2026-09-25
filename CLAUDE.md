@@ -131,6 +131,20 @@ the whole `vm2027.github.io` domain — any other GitHub Pages project
 under the same username would appear in the same Plausible site unless
 filtered by page path in the dashboard.
 
+## Grafana Cloud monitoring
+
+`grafana/` holds a dashboard (`dashboard.json`), a read-only Postgres
+role script, and setup steps for a free Grafana Cloud account reading
+the Aiven `articles` table. The user applies these by hand; nothing in CI
+depends on them. The panel and alert queries hard-code the expected
+topic × origin segments (`el-salvador/perplexity`,
+`finance-insurance/perplexity`, `finance-insurance/rss`) so that a
+silent segment shows as 0/stale instead of vanishing. **If a change adds,
+removes, or retires a topic or a source in `fetch_news.py`, update that
+list in `grafana/dashboard.json` and the alert query in
+`grafana/README.md` in the same change**, or the alert will either miss the
+new segment or page forever on the retired one.
+
 ## Workflow notes
 
 - Verification of live behavior (RSS feed reachability, Perplexity API

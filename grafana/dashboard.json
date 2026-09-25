@@ -1,0 +1,334 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_NEWS_POSTGRES",
+      "label": "News Postgres (Aiven)",
+      "description": "The read-only grafana_ro Postgres data source",
+      "type": "datasource",
+      "pluginId": "grafana-postgresql-datasource",
+      "pluginName": "PostgreSQL"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "grafana-postgresql-datasource",
+      "name": "PostgreSQL",
+      "version": ""
+    }
+  ],
+  "title": "News pipeline health",
+  "uid": "news-pipeline-health",
+  "tags": [
+    "news"
+  ],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "editable": true,
+  "refresh": "1h",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Hours since last new article (per topic / source)",
+      "description": "Red above 36h: the daily fetch runs once per day between 14:00 and ~22:30 UTC, so 36h means a whole day's run added nothing for that segment. Rows are only added for newly saved articles.",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NEWS_POSTGRES}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NEWS_POSTGRES}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH segs(topic, origin) AS (\n  VALUES ('el-salvador', 'perplexity'),\n         ('finance-insurance', 'perplexity'),\n         ('finance-insurance', 'rss')\n  UNION\n  SELECT DISTINCT topic, origin FROM articles\n  WHERE fetched_at > now() - interval '7 days'\n)\nSELECT s.topic || ' / ' || s.origin AS segment,\n       COALESCE(EXTRACT(EPOCH FROM now() - max(a.fetched_at)) / 3600, 9999)::float AS hours_since_last\nFROM segs s\nLEFT JOIN articles a ON a.topic = s.topic AND a.origin = s.origin\nGROUP BY 1\nORDER BY 1"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": true,
+          "calcs": [],
+          "fields": "/^hours_since_last$/"
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "orientation": "auto",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 30
+              },
+              {
+                "color": "red",
+                "value": 36
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "New articles per day (UTC) by topic / source",
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 0,
+        "y": 6
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NEWS_POSTGRES}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NEWS_POSTGRES}"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "WITH segs(topic, origin) AS (\n  VALUES ('el-salvador', 'perplexity'),\n         ('finance-insurance', 'perplexity'),\n         ('finance-insurance', 'rss')\n  UNION\n  SELECT DISTINCT topic, origin FROM articles\n  WHERE fetched_at > now() - interval '7 days'\n)\n, days AS (\n  SELECT generate_series(date_trunc('day', $__timeFrom()::timestamptz),\n                         date_trunc('day', $__timeTo()::timestamptz),\n                         interval '1 day') AS day\n)\nSELECT d.day AS time,\n       s.topic || ' / ' || s.origin AS metric,\n       count(a.id) AS value\nFROM days d\nCROSS JOIN segs s\nLEFT JOIN articles a\n  ON a.topic = s.topic AND a.origin = s.origin\n AND a.fetched_at >= d.day AND a.fetched_at < d.day + interval '1 day'\nGROUP BY 1, 2\nORDER BY 1, 2"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "min",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "New in the last 24h",
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 6
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NEWS_POSTGRES}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NEWS_POSTGRES}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH segs(topic, origin) AS (\n  VALUES ('el-salvador', 'perplexity'),\n         ('finance-insurance', 'perplexity'),\n         ('finance-insurance', 'rss')\n  UNION\n  SELECT DISTINCT topic, origin FROM articles\n  WHERE fetched_at > now() - interval '7 days'\n)\nSELECT s.topic, s.origin,\n       count(a.id) AS new_last_24h\nFROM segs s\nLEFT JOIN articles a\n  ON a.topic = s.topic AND a.origin = s.origin\n AND a.fetched_at > now() - interval '24 hours'\nGROUP BY 1, 2\nORDER BY 1, 2"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "new_last_24h"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "RSS feed health (last 30 days)",
+      "description": "Sorted so feeds with nothing in the last 3 days float to the top -- a feed that has gone quiet or changed its URL shows up here first.",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NEWS_POSTGRES}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NEWS_POSTGRES}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT topic, source AS feed,\n       count(*) FILTER (WHERE fetched_at > now() - interval '3 days')  AS last_3d,\n       count(*) FILTER (WHERE fetched_at > now() - interval '7 days')  AS last_7d,\n       count(*) AS last_30d,\n       max(fetched_at) AS last_seen\nFROM articles\nWHERE origin = 'rss' AND fetched_at > now() - interval '30 days'\nGROUP BY 1, 2\nORDER BY last_3d ASC, last_30d DESC"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "last_3d"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Latest 50 articles",
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NEWS_POSTGRES}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NEWS_POSTGRES}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT fetched_at, topic, origin, source, title, url\nFROM articles\nORDER BY fetched_at DESC\nLIMIT 50"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "url"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Open",
+                    "url": "${__value.raw}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
