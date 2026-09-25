@@ -25,7 +25,10 @@ password manager), then run the one-off
 `.github/workflows/grafana-role-setup.yml`. It uses the existing
 `DATABASE_URL` secret, sends the password only as a SCRAM hash, and
 verifies the new login: it can read per-topic/origin counts and has no
-write privileges. Delete the workflow once it has succeeded.
+write privileges. Done 2026-09-25 (run 36193200861, attempt 2: all
+three segments readable, no write privileges), then the workflow was
+deleted. To redo it, restore the file from git history
+(`git log --all -- .github/workflows/grafana-role-setup.yml`).
 
 **With `psql`:** use the **Service URI** from the Aiven console (service
 overview page):
