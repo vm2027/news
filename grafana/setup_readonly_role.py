@@ -54,6 +54,12 @@ def main() -> None:
         fail("GRAFANA_RO_PASSWORD secret is not set -- add it under Settings > Secrets and variables > Actions")
     if len(password) < 16 or not password.isascii():
         fail("GRAFANA_RO_PASSWORD must be at least 16 characters, ASCII only")
+    # A stray space/newline from copy-paste becomes part of the password
+    # here but usually not when it's pasted into Grafana -- a silent
+    # mismatch ("password authentication failed") that can't be diagnosed
+    # later because secrets are write-only.
+    if password != password.strip():
+        fail("GRAFANA_RO_PASSWORD has leading/trailing whitespace -- re-paste it without spaces or line breaks")
 
     import psycopg
     from psycopg import sql

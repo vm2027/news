@@ -1,0 +1,44 @@
+name: Grafana read-only role setup
+
+# ONE-OFF, to be deleted once it has succeeded: creates the grafana_ro
+# Postgres login (grafana/create_readonly_role.sql) and sets its password
+# from the GRAFANA_RO_PASSWORD secret, for a user with no local psql.
+# Runs on push to the Grafana setup branch only (a workflow_dispatch
+# trigger can't be used before the file exists on master). Idempotent:
+# a re-run just re-applies the grants and re-sets the same password.
+on:
+  push:
+    branches: [claude/trusting-galileo-h11c6a]
+    paths:
+      - .github/workflows/grafana-role-setup.yml
+      - grafana/setup_readonly_role.py
+      - grafana/create_readonly_role.sql
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/claude/trusting-galileo-h11c6a'
+
+    permissions:
+      contents: read        # Never writes to the repo
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # This repo is public, so this log is too: the script prints only
+      # per-topic/origin counts and pass/fail lines, never the DSN, host
+      # or password (and failures only the exception type).
+      - name: Create grafana_ro and verify it
+        run: python grafana/setup_readonly_role.py
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GRAFANA_RO_PASSWORD: ${{ secrets.GRAFANA_RO_PASSWORD }}
