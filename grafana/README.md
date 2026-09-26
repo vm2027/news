@@ -27,7 +27,10 @@ password manager), then run the one-off
 verifies the new login: it can read per-topic/origin counts and has no
 write privileges. Done 2026-09-25 (run 36193200861, attempt 2: all
 three segments readable, no write privileges), then the workflow was
-deleted. To redo it, restore the file from git history
+deleted. Restored once on 2026-09-26 to reset the password after the
+original value was lost (run 36216391007, attempt 2), then deleted again.
+**Save the password somewhere before putting it in the secret** --
+GitHub never shows a secret again, and a lost value means another reset. To redo it, restore the file from git history
 (`git log --all -- .github/workflows/grafana-role-setup.yml`).
 
 **With `psql`:** use the **Service URI** from the Aiven console (service
