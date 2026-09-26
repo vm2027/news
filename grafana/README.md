@@ -27,8 +27,9 @@ password manager), then run the one-off
 verifies the new login: it can read per-topic/origin counts and has no
 write privileges. Done 2026-09-25 (run 36193200861, attempt 2: all
 three segments readable, no write privileges), then the workflow was
-deleted. Restored once on 2026-09-26 to reset the password after the
-original value was lost (run 36216391007, attempt 2), then deleted again.
+deleted. Restored on 2026-09-26 to reset the password after the
+original value was lost (run 36216391007, attempt 2), and to lower the
+connection limit to 5 (runs 36218052683, 36218084172), then deleted again.
 **Save the password somewhere before putting it in the secret** --
 GitHub never shows a secret again, and a lost value means another reset. To redo it, restore the file from git history
 (`git log --all -- .github/workflows/grafana-role-setup.yml`).
@@ -57,6 +58,13 @@ Connections → Data sources → Add → **PostgreSQL**:
   Paste the **CA certificate** from the Aiven service overview into
   "TLS/SSL Root Certificate". `require` also works, but it doesn't check
   the server's identity.
+- **Connection limits** (required, not optional): **Max open** `2`,
+  **Auto max idle** off, **Max idle** `1`, **Max lifetime** `300`.
+  The Aiven service allows only 20 connections in total (17 in use when
+  measured 2026-09-26), and `grafana_ro` is capped at 5. With Grafana's
+  defaults, its pool held one connection per dashboard panel, hit the
+  cap, and the alert editor failed with "too many connections for role
+  grafana_ro". Worse, it could starve the daily fetch's database logging.
 - Save & test.
 
 If the test times out, check Aiven's **IP allow-list** (service → Network).
