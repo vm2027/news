@@ -68,6 +68,20 @@ def main() -> None:
     # 1. As admin: create/grant (idempotent), then set the password.
     try:
         with psycopg.connect(dsn, connect_timeout=10, autocommit=True) as conn:
+            # Diagnostic only (counts and states, nothing sensitive): how
+            # many connections grafana_ro holds right now, e.g. from
+            # Grafana's pool, and how many the whole server allows.
+            held = conn.execute(
+                "SELECT coalesce(state, '?'), count(*) FROM pg_stat_activity "
+                "WHERE usename = %s GROUP BY 1 ORDER BY 1", (ROLE,)
+            ).fetchall()
+            total, limit = conn.execute(
+                "SELECT (SELECT count(*) FROM pg_stat_activity), "
+                "current_setting('max_connections')::int"
+            ).fetchone()
+            print(f"INFO: {ROLE} connections open now: "
+                  + (", ".join(f"{n} {state}" for state, n in held) or "none"))
+            print(f"INFO: server connections in use: {total} of max_connections {limit}")
             conn.execute(SQL_FILE.read_text())
             conn.execute(
                 sql.SQL("ALTER ROLE {} PASSWORD {}").format(

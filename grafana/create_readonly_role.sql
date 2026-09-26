@@ -31,7 +31,11 @@ END $$;
 GRANT SELECT ON articles TO grafana_ro;
 
 -- Belt and braces: even a query Grafana sends can't write, can't run away,
--- and can't hog the (small) Aiven connection pool.
+-- and can't hog the (small) Aiven connection pool. The limit was first 3,
+-- which Grafana's own connection pool exhausted (one held connection per
+-- dashboard panel, plus the alert editor's preview -> "too many
+-- connections for role"); 10 leaves headroom, and the data source's
+-- connection-limit settings in Grafana keep it well below that.
 ALTER ROLE grafana_ro SET default_transaction_read_only = on;
 ALTER ROLE grafana_ro SET statement_timeout = '15s';
-ALTER ROLE grafana_ro CONNECTION LIMIT 3;
+ALTER ROLE grafana_ro CONNECTION LIMIT 10;
