@@ -34,8 +34,13 @@ GRANT SELECT ON articles TO grafana_ro;
 -- and can't hog the (small) Aiven connection pool. The limit was first 3,
 -- which Grafana's own connection pool exhausted (one held connection per
 -- dashboard panel, plus the alert editor's preview -> "too many
--- connections for role"); 10 leaves headroom, and the data source's
--- connection-limit settings in Grafana keep it well below that.
+-- connections for role"). But the Aiven service allows only 20
+-- connections in total (17 in use when measured on 2026-09-26, including
+-- Grafana's 3), so a generous limit could starve fetch_news.py of the one
+-- connection it needs for DB logging -- which is best-effort, so articles
+-- would still publish but their rows would go missing, and the dashboard
+-- and alert would then report a false "stale". 5 is the hard ceiling;
+-- Grafana's data source "Max open" = 2 keeps real use below it.
 ALTER ROLE grafana_ro SET default_transaction_read_only = on;
 ALTER ROLE grafana_ro SET statement_timeout = '15s';
-ALTER ROLE grafana_ro CONNECTION LIMIT 10;
+ALTER ROLE grafana_ro CONNECTION LIMIT 5;
