@@ -143,3 +143,11 @@ filtered by page path in the dashboard.
   `obsidian/Obsedian_R/`, regenerate and commit `index.html` in the same
   change — the live site is the committed file, not something built at
   deploy time.
+- `docs/monitoring/perplexity-timeout-log.md` is a running daily log
+  (started 2026-09-08, after PR #35 raised the Perplexity timeout from
+  30s to 60s) tracking whether that fix holds and whether the GitHub
+  Actions cron scheduler for `fetch-news.yml` is drifting late or
+  skipping days. It's committed to the repo — not kept in a session's
+  `/tmp` — specifically so it survives container recycling across the
+  many separate sessions that update it day to day; append to it in
+  place rather than starting a new file.
