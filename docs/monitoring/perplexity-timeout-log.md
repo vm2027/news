@@ -47,6 +47,7 @@ Tracks two independent things in one table: (1) whether the Perplexity 60s timeo
 | 2026-10-18 (Day 40, new 60s timeout) | 17:25 (normal window) | succeeded @7.4s | n/a | succeeded @6.9s + RSS supplement | n/a | 1 (run #219) |
 | 2026-10-19 (Day 41, new 60s timeout) | 19:59 (normal window, near close) | succeeded @7.7s | n/a | succeeded @9.3s + RSS supplement | n/a | 1 (run #221) |
 | 2026-10-20 (Day 42, new 60s timeout) | 18:31 (normal window) | succeeded @9.4s | n/a | succeeded @8.1s + RSS supplement | n/a | 1 (run #223) |
+| 2026-10-21 (Day 43, new 60s timeout) | 18:44 (normal window) | succeeded @8.5s | n/a | succeeded @9.2s + RSS supplement | n/a | 1 (run #225) |
 
 ## Scheduler-drift trend (separate from the timeout fix)
 
